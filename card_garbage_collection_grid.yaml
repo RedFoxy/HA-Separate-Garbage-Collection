@@ -1,0 +1,338 @@
+type: custom:state-switch
+entity: hash
+default: main
+transition: flip
+states:
+  settings:
+    type: entities
+    show_header_toggle: false
+    entities:
+      - type: button
+        icon: mdi:menu-left
+        name: Indietro
+        action_name: Back Home
+        tap_action:
+          action: navigate
+          navigation_path: '#main'
+      - entity: input_number.garbage_collection_days
+      - entity: input_datetime.garbage_collection_time
+        icon: mdi:bell-ring
+      - type: divider
+        style: {}
+      - type: call-service
+        entity: automation.garbage_collection_notifications
+        action_name: START
+        icon: mdi:send
+        name: Prova notifica Test
+        service: automation.trigger
+        service_data:
+          entity_id: automation.garbage_collection_notifications
+          skip_condition: false
+  calendar:
+    type: vertical-stack
+    cards:
+      - type: custom:auto-entities
+        card:
+          type: entities
+        filter:
+          include:
+            - domain: sensor
+              attributes:
+                device_class: garbage_collection*
+        entities:
+          - type: button
+            icon: mdi:menu-left
+            name: Indietro
+            action_name: Back Home
+            tap_action:
+              action: navigate
+              navigation_path: '#main'
+        sort:
+          attribute: days
+          method: attribute
+          numeric: true
+  main:
+    type: picture-elements
+    image: /local/hassiohelp/pkg_raccolta/sfondo-differenziata.png
+    style: |
+      ha-card {
+        /* 
+          SETTINGS - Change the variables name (i.e. --bianco) 
+          based on the friendly name of the bin
+          and the style (i.e. hue-rotate(00deg)) for the color of the bin
+        */
+        --plastica: hue-rotate(20deg) brightness(1.2);             /* yellow */
+        --umido: hue-rotate(0deg) grayscale(50%) brightness(0.7);  /* brown */
+        --carta: hue-rotate(160deg) brightness(0.7);               /* blue */
+        --indif: hue-rotate(0deg) grayscale(100%) brightness(0.7); /* gray */
+        --vetro: hue-rotate(100deg) brightness(0.7);               /* dark green */
+        borde-radius: var(--ha-card-border-radius);
+        width: 100%;
+      }
+    elements:
+      - type: icon
+        icon: mdi:application-cog
+        tap_action:
+          action: navigate
+          navigation_path: '#settings'
+        style:
+          color: red
+          left: 5%
+          top: 10%
+      - type: custom:button-card
+        entity: input_number.garbage_collection_days
+        show_icon: false
+        name: PORTARE FUORI OGGI
+        double_tap_action:
+          action: navigate
+          navigation_path: '#all'
+        styles:
+          card:
+            - background-color: rgba(34, 154, 210, 0.5)
+            - color: black
+            - font-family: Trebuchet MS
+            - font-size: 100%
+            - font-weight: bold
+            - opacity: 0.8
+            - text-align: center
+            - height: 24px
+        style:
+          left: 10%
+          right: 10%
+          top: 5%
+          transform: none
+      - type: icon
+        icon: mdi:calendar-today
+        tap_action:
+          action: navigate
+          navigation_path: '#calendar'
+        style:
+          color: green
+          left: 95%
+          top: 10%
+      - type: custom:auto-entities
+        show_empty: false
+        card_param: cards
+        card:
+          type: grid
+          square: false
+          columns: 6
+        sort:
+          attribute: days
+          method: attribute
+          numeric: true
+          count: 5
+          first: 0
+        style:
+          transform: translate(0%, 0%)
+          bottom: 0%
+          left: 5%
+        filter:
+          exclude:
+            - entity_id: group.garbage_collection
+              attributes:
+                entity_id: []
+          include:
+            - group: group.garbage_collection
+              options:
+                type: custom:button-card
+                entity: this.entity_id
+                triggers_update: all
+                show_entity_picture: true
+                show_icon: false
+                show_label: true
+                tap_action:
+                  action: more-info
+                entity_picture: /local/hassiohelp/pkg_raccolta/bidone.png
+                label: |-
+                  [[[
+                      const days = entity.attributes.days;
+                      switch (days) {
+                        case 0:
+                          return 'OGGI';
+                          // break;
+                        case 1:
+                          return 'DOMANI';
+                          // break;
+                        case 2:
+                          return 'Tra 2 giorni';
+                          // break;
+                        default:
+                          if (entity.state.includes(",")) return entity.state.split(",")[1];
+                          else return 'Tra ' + days + ' giorni';
+                          // return entity.state;
+                      }
+                  ]]]
+                styles:
+                  card:
+                    - background: none
+                    - box-shadow: none
+                    - transform: none
+                    - padding: 0px
+                  entity_picture:
+                    - width: 100%
+                    - higth: 100%
+                    - filter: |
+                        [[[
+                          return 'var(--'+ entity.attributes.friendly_name.toLowerCase().replace(' ','_') +')';
+                        ]]]
+                  img_cell:
+                    - transform: translate(0%, 10%)
+                  name:
+                    - transform: translate(0%, -355%)
+                    - justify-content: center
+                    - text-transform: lowercase
+                    - font-variant: small-caps
+                    - background-color: rgba(255, 255, 255, 0.5)
+                    - box-shadow: inset 0 0 1 0.5px  rgba(0, 0, 0, 1)
+                    - padding: 5%
+                    - font-size: 65%
+                    - letter-spacing: 0.03vw
+                    - border-radius: 10%
+                  label:
+                    - justify-self: center
+                    - font-variant: small-caps
+                    - font-weight: bold
+                    - font-size: 65%
+                    - padding-bottom: 5px
+  all:
+    type: picture-elements
+    image: /local/hassiohelp/pkg_raccolta/sfondo-differenziata.png
+    style: |
+      ha-card {
+        /* 
+          SETTINGS - Change the variables name (i.e. --bianco) 
+          based on the friendly name of the bin
+          and the style (i.e. hue-rotate(00deg)) for the color of the bin
+        */
+        --plastica: hue-rotate(20deg) brightness(1.2);             /* yellow */
+        --umido: hue-rotate(0deg) grayscale(50%) brightness(0.7);  /* brown */
+        --carta: hue-rotate(160deg) brightness(0.7);               /* blue */
+        --indif: hue-rotate(0deg) grayscale(100%) brightness(0.7); /* gray */
+        --vetro: hue-rotate(100deg) brightness(0.7);               /* dark green */
+        borde-radius: var(--ha-card-border-radius);
+        width: 100%;
+      }
+    elements:
+      - type: icon
+        icon: mdi:application-cog
+        tap_action:
+          action: navigate
+          navigation_path: '#settings'
+        style:
+          color: red
+          left: 5%
+          top: 10%
+      - type: custom:button-card
+        entity: input_number.garbage_collection_days
+        show_icon: false
+        name: TUTTI I RIFIUTI
+        double_tap_action:
+          action: navigate
+          navigation_path: '#main'
+        styles:
+          card:
+            - background-color: rgba(34, 154, 210, 0.5)
+            - color: Black
+            - font-family: Trebuchet MS
+            - font-size: 100%
+            - font-weight: bold
+            - opacity: 0.8
+            - text-align: center
+            - height: 24px
+        style:
+          left: 10%
+          right: 10%
+          top: 5%
+          transform: none
+      - type: icon
+        icon: mdi:calendar-today
+        tap_action:
+          action: navigate
+          navigation_path: '#calendar'
+        style:
+          color: green
+          left: 95%
+          top: 10%
+      - type: custom:auto-entities
+        show_empty: false
+        card_param: cards
+        card:
+          type: grid
+          square: false
+          columns: 6
+        sort:
+          attribute: days
+          method: attribute
+          numeric: true
+          count: 5
+          first: 0
+        style:
+          transform: translate(0%, 0%)
+          bottom: 0%
+          left: 5%
+        filter:
+          include:
+            - entity_id: sensor.raccolta*
+              attributes:
+                days: '>= 0'
+              options:
+                type: custom:button-card
+                entity: this.entity_id
+                triggers_update: all
+                show_entity_picture: true
+                show_icon: false
+                show_label: true
+                tap_action:
+                  action: more-info
+                entity_picture: /local/hassiohelp/pkg_raccolta/bidone.png
+                label: |-
+                  [[[
+                      const days = entity.attributes.days;
+                      switch (days) {
+                        case 0:
+                          return 'OGGI';
+                          // break;
+                        case 1:
+                          return 'DOMANI';
+                          // break;
+                        case 2:
+                          return 'Tra 2 giorni';
+                          // break;
+                        default:
+                          if (entity.state.includes(",")) return entity.state.split(",")[1];
+                          else return 'Tra ' + days + ' giorni';
+                      }
+                  ]]]
+                styles:
+                  card:
+                    - background: none
+                    - box-shadow: none
+                    - transform: none
+                    - padding: 0px
+                  entity_picture:
+                    - width: 100%
+                    - higth: 100%
+                    - filter: |
+                        [[[
+                          return 'var(--'+ entity.attributes.friendly_name.toLowerCase().replace(' ','_') +')';
+                        ]]]
+                  img_cell:
+                    - transform: translate(0%, 10%)
+                  name:
+                    - transform: translate(0%, -355%)
+                    - justify-content: center
+                    - text-transform: lowercase
+                    - font-variant: small-caps
+                    - background-color: rgba(255, 255, 255, 0.5)
+                    - box-shadow: inset 0 0 1 0.5px  rgba(0, 0, 0, 1)
+                    - padding: 5%
+                    - font-size: 65%
+                    - letter-spacing: 0.03vw
+                    - border-radius: 10%
+                  label:
+                    - justify-self: center
+                    - font-variant: small-caps
+                    - font-weight: bold
+                    - font-size: 65%
+                    - padding-bottom: 5px

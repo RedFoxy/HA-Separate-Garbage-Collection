@@ -1,0 +1,60 @@
+type: custom:auto-entities
+show_empty: false
+card_param: cards
+card:
+  type: grid
+  square: false
+  columns: 1
+sort:
+  attribute: days
+  method: attribute
+  numeric: true
+  count: 1
+  first: 0
+style:
+  transform: translate(0%, 0%)
+  bottom: 0%
+  left: 5%
+filter:
+  exclude:
+    - entity_id: group.garbage_collection
+      attributes:
+        entity_id: []
+  include:
+    - group: group.garbage_collection
+      options:
+        type: custom:button-card
+        entity: this.entity_id
+        triggers_update: all
+        show_entity_picture: true
+        show_icon: false
+        show_label: false
+        tap_action:
+          action: more-info
+        entity_picture: /local/hassiohelp/pkg_raccolta/bidone.png
+        label: |-
+          [[[
+              return entity.attributes.friendly_name;
+          ]]]
+        styles:
+          card: null
+          entity_picture:
+            - max-width: 715%
+            - filter: |
+                [[[
+                  return 'var(--'+ entity.attributes.friendly_name.toLowerCase().replace(' ','_') +')';
+                ]]]
+        extra_styles: |
+          #img-cell #icon {
+            /* 
+              SETTINGS - Change the variables name (i.e. --bianco) 
+              based on the friendly name of the bin
+              and the style (i.e. hue-rotate(00deg)) for the color of the bin
+            */
+            --plastica: hue-rotate(20deg) brightness(1.2);             /* yellow */
+            --umido: hue-rotate(0deg) grayscale(50%) brightness(0.7);  /* brown */
+            --carta: hue-rotate(160deg) brightness(0.7);               /* blue */
+            --indif: hue-rotate(0deg) grayscale(100%) brightness(0.7); /* gray */
+            --vetro: hue-rotate(100deg) brightness(0.7);               /* dark green */
+            borde-radius: var(--ha-card-border-radius);
+          }

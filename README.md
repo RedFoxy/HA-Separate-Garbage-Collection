@@ -3,7 +3,7 @@ This is a fork of [Raccolta differenziata](https://hassiohelp.eu/2019/03/17/racc
 
 Sorry but actualy that project is traslated in italian, soon will be translated in english
 
-![Separate Garbage Collection - Full view](/example.png)
+![Separate Garbage Collection - Full view](/docs/images/full-view.png)
 
 Questa guida si basa sull’articolo di [Raccolta differenziata](https://hassiohelp.eu/2019/03/17/raccolta-differenziata/), sui post di Caio Sweet sul [HassioHelp forum](https://forum.hassiohelp.eu/d/223-raccolta-differenziata-bisettimanale/132) e a una discussione con Caio Sweet.
 

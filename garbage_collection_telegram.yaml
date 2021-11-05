@@ -1,0 +1,97 @@
+# package_garbage_collection:
+homeassistant:
+  customize:
+    package.node_anchors:
+      customize: &customize
+        Package: Garbage Collection
+        site: hassiohelp.eu 🌐
+        author: Enrico & Caio
+        version: 2
+
+  customize_glob:
+    "sensor.raccolta_*":
+      <<: *customize
+    "automation.garbage_collection_*":
+      <<: *customize
+    "input_datetime.garbage_collection_*":
+      <<: *customize
+    "input_number.garbage_collection_*":
+      <<: *customize
+
+input_datetime:
+  garbage_collection_time:
+    name: Orario avviso raccolta differenziata
+    has_date: false
+    has_time: true
+    initial: "09:05"
+
+input_number:
+  garbage_collection_days:
+    min: 0
+    max: 10
+    name: notifica
+    step: 1
+    mode: slider
+    # unit_of_measurement: giorni
+
+automation:
+  - alias: "Garbage Collection Notifications"
+    # initial_state: true
+    max_exceeded: silent
+    # mode: restart
+    trigger:
+      - platform: homeassistant
+        event: start
+      - platform: time
+        at: input_datetime.garbage_collection_time
+      - platform: template
+        value_template: >
+            {{ states.sensor 
+            | selectattr('attributes.days','defined')
+            | selectattr('attributes.device_class', '>=', 'garbage_collection')
+            | selectattr('attributes.days', '==', states('input_number.garbage_collection_days')|int)
+            | map(attribute='entity_id')|list|count != expand(states.group.garbage_collection)|list|count
+            }}
+    action:
+      - variables:
+          prefix_message: >-
+            {% set days = states('input_number.garbage_collection_days')|int %}
+            {% if days == 0 %}
+              Oggi ritirano
+            {% elif days == 1 %}
+              Domani ritirano
+            {% elif days == 2 %}
+              Dopodomani ritirano
+            {% else %}
+              Ricordati che tra {{days}} giorni ritirano
+            {% endif %}
+      - choose:
+          - conditions: "{{trigger is defined and not 'time' in trigger.platform}}"
+            sequence:
+              - service: group.set
+                data:
+                  object_id: garbage_collection
+                  entities: >-
+                    {{ states.sensor 
+                    | selectattr('attributes.days','defined')
+                    | selectattr('attributes.device_class', '>=', 'garbage_collection')
+                    | selectattr('attributes.days', '==', states('input_number.garbage_collection_days')|int)
+                    | map(attribute='entity_id')|list
+                    }}
+                    
+          - conditions: "{{expand(states.group.garbage_collection)|list|count > 0}}"
+            sequence:
+              - service: notify.telegram
+                data:
+                  title: >
+                    Promemoria differenziata
+                  message: >
+                    {% set comma = joiner(', ') %}
+                    {%- macro raccolta() -%}
+                      {% for e in expand(states.group.garbage_collection) -%}
+                        {{' e' if loop.last and not loop.first else comma()}}
+                        {{e.name}}
+                      {%- endfor %}
+                    {%- endmacro -%}
+                    {{ prefix_message ~ raccolta()}}
+
