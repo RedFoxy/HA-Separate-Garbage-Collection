@@ -33,10 +33,10 @@ Per installare questo pacchetto dovete scaricare uno dei seguenti file yaml e me
 Nella directory cards sono presenti degli esempi di cards pronte per essere incollate nella vostra interfaccia:
 - all-trashcan.yaml - Mostra tutti i bidoni e i relativi giorni di consegna che mancano.
 ![Example of all-trashcan.yaml's card](/docs/images/all-trashcan.png)
-- all-trashcan-all-days.yaml - Mostra tutti i bidoni e i tasti in alto per cambiare la visuale e i settaggi
-![Example of all-trashcan-all-days.yaml's card](/docs/images/all-trashcan-all-days.png)
 - all-trashcan-only-today.yaml - Mostra solo i bidoni della giornata e i tasti in alto per cambiare la visuale e i ![Example of all-trashcan-only-today.yaml's card](/docs/images/all-trashcan-only-today.png)
 settaggi
+- all-trashcan-all-days.yaml - Mostra tutti i bidoni e i tasti in alto per cambiare la visuale e i settaggi
+![Example of all-trashcan-all-days.yaml's card](/docs/images/all-trashcan-all-days.png)
 - icon-today.yaml - Mostra un solo bidone, utile per metterla dentro una card singola
 ![Example of icon-today.yaml's card](/docs/images/icon-today.png)
 
