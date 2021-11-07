@@ -31,7 +31,7 @@ filter:
         show_label: false
         tap_action:
           action: more-info
-        entity_picture: /local/hassiohelp/pkg_raccolta/bidone.png
+        entity_picture: /local/redfoxy/ha-separate-garbage-collection/trashcan.png
         label: |-
           [[[
               return entity.attributes.friendly_name;

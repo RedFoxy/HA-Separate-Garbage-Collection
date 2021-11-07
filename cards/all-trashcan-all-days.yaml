@@ -1,6 +1,6 @@
 type: custom:state-switch
 entity: hash
-default: main
+default: all
 transition: flip
 states:
   settings:
@@ -13,7 +13,7 @@ states:
         action_name: Back Home
         tap_action:
           action: navigate
-          navigation_path: '#main'
+          navigation_path: '#today'
       - entity: input_number.garbage_collection_days
       - entity: input_datetime.garbage_collection_time
         icon: mdi:bell-ring
@@ -46,26 +46,21 @@ states:
             action_name: Back Home
             tap_action:
               action: navigate
-              navigation_path: '#main'
+              navigation_path: '#today'
         sort:
           attribute: days
           method: attribute
           numeric: true
-  main:
+  today:
     type: picture-elements
-    image: /local/hassiohelp/pkg_raccolta/sfondo-differenziata.png
+    image: /local/redfoxy/ha-separate-garbage-collection/background.png
     style: |
       ha-card {
-        /* 
-          SETTINGS - Change the variables name (i.e. --bianco) 
-          based on the friendly name of the bin
-          and the style (i.e. hue-rotate(00deg)) for the color of the bin
-        */
-        --plastica: hue-rotate(20deg) brightness(1.2);             /* yellow */
-        --umido: hue-rotate(0deg) grayscale(50%) brightness(0.7);  /* brown */
-        --carta: hue-rotate(160deg) brightness(0.7);               /* blue */
-        --indif: hue-rotate(0deg) grayscale(100%) brightness(0.7); /* gray */
-        --vetro: hue-rotate(100deg) brightness(0.7);               /* dark green */
+        --plastica: hue-rotate(20deg) brightness(1.2);
+        --umido   : hue-rotate(00deg) grayscale(50%) brightness(0.7);
+        --carta   : hue-rotate(160deg) brightness(0.7);
+        --indif   : hue-rotate(0deg) grayscale(100%) brightness(0.7);
+        --vetro   : hue-rotate(100deg) brightness(0.7);
         borde-radius: var(--ha-card-border-radius);
         width: 100%;
       }
@@ -83,7 +78,7 @@ states:
         entity: input_number.garbage_collection_days
         show_icon: false
         name: PORTARE FUORI OGGI
-        double_tap_action:
+        tap_action:
           action: navigate
           navigation_path: '#all'
         styles:
@@ -143,24 +138,20 @@ states:
                 show_label: true
                 tap_action:
                   action: more-info
-                entity_picture: /local/hassiohelp/pkg_raccolta/bidone.png
+                entity_picture: /local/redfoxy/ha-separate-garbage-collection/trashcan.png
                 label: |-
                   [[[
                       const days = entity.attributes.days;
                       switch (days) {
                         case 0:
                           return 'OGGI';
-                          // break;
                         case 1:
                           return 'DOMANI';
-                          // break;
                         case 2:
                           return 'Tra 2 giorni';
-                          // break;
                         default:
                           if (entity.state.includes(",")) return entity.state.split(",")[1];
                           else return 'Tra ' + days + ' giorni';
-                          // return entity.state;
                       }
                   ]]]
                 styles:
@@ -197,19 +188,14 @@ states:
                     - padding-bottom: 5px
   all:
     type: picture-elements
-    image: /local/hassiohelp/pkg_raccolta/sfondo-differenziata.png
+    image: /local/redfoxy/ha-separate-garbage-collection/background.png
     style: |
       ha-card {
-        /* 
-          SETTINGS - Change the variables name (i.e. --bianco) 
-          based on the friendly name of the bin
-          and the style (i.e. hue-rotate(00deg)) for the color of the bin
-        */
-        --plastica: hue-rotate(20deg) brightness(1.2);             /* yellow */
-        --umido: hue-rotate(0deg) grayscale(50%) brightness(0.7);  /* brown */
-        --carta: hue-rotate(160deg) brightness(0.7);               /* blue */
-        --indif: hue-rotate(0deg) grayscale(100%) brightness(0.7); /* gray */
-        --vetro: hue-rotate(100deg) brightness(0.7);               /* dark green */
+        --plastica: hue-rotate(20deg) brightness(1.2);
+        --umido   : hue-rotate(00deg) grayscale(50%) brightness(0.7);
+        --carta   : hue-rotate(160deg) brightness(0.7);
+        --indif   : hue-rotate(0deg) grayscale(100%) brightness(0.7);
+        --vetro   : hue-rotate(100deg) brightness(0.7);
         borde-radius: var(--ha-card-border-radius);
         width: 100%;
       }
@@ -227,9 +213,9 @@ states:
         entity: input_number.garbage_collection_days
         show_icon: false
         name: TUTTI I RIFIUTI
-        double_tap_action:
+        tap_action:
           action: navigate
-          navigation_path: '#main'
+          navigation_path: '#today'
         styles:
           card:
             - background-color: rgba(34, 154, 210, 0.5)
@@ -285,7 +271,7 @@ states:
                 show_label: true
                 tap_action:
                   action: more-info
-                entity_picture: /local/hassiohelp/pkg_raccolta/bidone.png
+                entity_picture: /local/redfoxy/ha-separate-garbage-collection/trashcan.png
                 label: |-
                   [[[
                       const days = entity.attributes.days;
