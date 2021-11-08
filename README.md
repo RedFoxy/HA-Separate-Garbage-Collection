@@ -10,11 +10,11 @@ Questa guida si basa sull’articolo di [Raccolta differenziata](https://hassioh
 Prima di iniziare assicuratevi di aver installato, tramite HACS o a mano, i seguenti custom components e custom cards:
 
 ## Dipendenze
-1. Garbage Collection – Integrazione obbligatoria
-2. Auto-entities – Frontend obbligatoria
-3. Button-card – Frontend obbligatoria
-4. Card-mod – Frontend obbligatoria
-5. State-switch – Frontend opzionale, installatela solo se si usa la card grande
+1. [Garbage Collection](https://github.com/bruxy70/Garbage-Collection) – Integrazione obbligatoria
+2. [Auto-entities](https://github.com/thomasloven/lovelace-auto-entities) – Frontend obbligatoria
+3. [Button-card](https://github.com/custom-cards/button-card) – Frontend obbligatoria
+4. [Card-mod](https://github.com/thomasloven/lovelace-card-mod) – Frontend obbligatoria
+5. [State-switch](https://github.com/thomasloven/lovelace-state-switch) – Frontend opzionale, installatela solo se si usa la card grande
 
 Installati tutti i componenti richiesti, riavviate Home Assistant, quindi andate in **Impostazioni -> Integrazioni** e **aggiungete un “Garbage Collection”** per ogni tipo di rifiuto che volete gestire, abbiate cura di inserire nel campo "**Scade dopo**" un valore a partire dalla mezzanotte del giorno in cui il rifiuto è valido, il valore indica dopo quanto deve scadere il rifiuto, io vi consiglio 23:59 così che scada alla mezzanotte.
 
