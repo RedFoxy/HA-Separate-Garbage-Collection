@@ -30,7 +30,7 @@ Per installare questo pacchetto dovete scaricare uno dei seguenti file yaml e me
 - garbage_collection_telegram.yaml con notifica tramite Telegram
 - garbage_collection_no_notifica.yaml SENZA NOTIFICHE
 
-Nella directory cards sono presenti degli esempi di cards pronte per essere incollate nella vostra interfaccia:
+Nella directory cards sono presenti degli esempi di schede pronte per essere incollate nella vostra interfaccia, per farlo cliccate i **tre puntini in alto a destra**, quindi selezionate **Modifica Plancia** e **aggiungete una scheda** qualsiasi, in fine, cliccate su **Modifica editor del codice**, cancellate tutto il contenuto e incollate il codice della scheda che avete scelto:
 - all-trashcan.yaml - Mostra tutti i bidoni e i relativi giorni di consegna che mancano.
 ![Example of all-trashcan.yaml's card](/docs/images/all-trashcan.png)
 - all-trashcan-only-today.yaml - Mostra solo i bidoni della giornata e i tasti in alto per cambiare la visuale e i settaggi
