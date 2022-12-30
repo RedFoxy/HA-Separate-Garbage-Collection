@@ -1,5 +1,4 @@
 type: custom:auto-entities
-show_empty: false
 card_param: cards
 card:
   type: grid
@@ -16,10 +15,6 @@ style:
   bottom: 0%
   left: 5%
 filter:
-  exclude:
-    - entity_id: group.garbage_collection
-      attributes:
-        entity_id: []
   include:
     - group: group.garbage_collection
       options:
