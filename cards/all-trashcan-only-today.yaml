@@ -10,7 +10,7 @@ states:
       - type: button
         icon: mdi:menu-left
         name: Indietro
-        action_name: Indietro
+        action_name: Back Home
         tap_action:
           action: navigate
           navigation_path: '#today'
@@ -21,17 +21,15 @@ states:
         style: {}
       - type: call-service
         entity: automation.garbage_collection_notifications
-        action_name: Prova
+        action_name: Send
         icon: mdi:send
-        name: Notifica di Test
+        name: Garbage collection notify
         service: automation.trigger
         service_data:
           entity_id: automation.garbage_collection_notifications
           skip_condition: false
   calendar:
-    type: vertical-stack
-    cards:
-      - type: custom:auto-entities
+    type: custom:auto-entities
         card:
           type: entities
         filter:
@@ -39,6 +37,10 @@ states:
             - domain: sensor
               attributes:
                 device_class: garbage_collection*
+    sort:
+      attribute: days
+      method: attribute
+      numeric: true
         entities:
           - type: button
             icon: mdi:menu-left
@@ -47,10 +49,6 @@ states:
             tap_action:
               action: navigate
               navigation_path: '#today'
-        sort:
-          attribute: days
-          method: attribute
-          numeric: true
   today:
     type: picture-elements
     image: /local/redfoxy/ha-separate-garbage-collection/background.png
@@ -106,7 +104,6 @@ states:
           left: 95%
           top: 10%
       - type: custom:auto-entities
-        show_empty: false
         card_param: cards
         card:
           type: grid
@@ -123,10 +120,6 @@ states:
           bottom: 0%
           left: 5%
         filter:
-          exclude:
-            - entity_id: group.garbage_collection
-              attributes:
-                entity_id: []
           include:
             - group: group.garbage_collection
               options:
@@ -175,6 +168,7 @@ states:
                     - text-transform: lowercase
                     - font-variant: small-caps
                     - background-color: rgba(255, 255, 255, 0.5)
+                    - color: black
                     - box-shadow: inset 0 0 1 0.5px  rgba(0, 0, 0, 1)
                     - padding: 5%
                     - font-size: 65%
@@ -241,7 +235,6 @@ states:
           left: 95%
           top: 10%
       - type: custom:auto-entities
-        show_empty: false
         card_param: cards
         card:
           type: grid
@@ -259,8 +252,9 @@ states:
           left: 5%
         filter:
           include:
-            - entity_id: sensor.raccolta*
+            - domain: sensor
               attributes:
+                device_class: garbage_collection*
                 days: '>= 0'
               options:
                 type: custom:button-card
@@ -308,6 +302,7 @@ states:
                     - text-transform: lowercase
                     - font-variant: small-caps
                     - background-color: rgba(255, 255, 255, 0.5)
+                    - color: black
                     - box-shadow: inset 0 0 1 0.5px  rgba(0, 0, 0, 1)
                     - padding: 5%
                     - font-size: 65%
