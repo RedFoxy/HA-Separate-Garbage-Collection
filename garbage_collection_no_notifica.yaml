@@ -4,9 +4,9 @@ homeassistant:
     package.node_anchors:
       customize: &customize
         Package: Garbage Collection
-        site: hassiohelp.eu 🌐
-        author: Enrico & Caio
-        version: 2
+        site: https://www.redfoxy.it
+        author: Massimo Cicci0'
+        version: 2.1
 
   customize_glob:
     "sensor.raccolta_*":
