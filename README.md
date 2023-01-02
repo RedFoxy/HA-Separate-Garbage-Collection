@@ -1,5 +1,4 @@
 # Separate Garbage Collection ![English](https://img.shields.io/badge/-english-blue)
-![Separate Garbage Collection - Full view](/docs/images/full-view.png)
 
 This is a fork of [Raccolta differenziata](https://hassiohelp.eu/2019/03/17/raccolta-differenziata/) created by Enrico & Caio on [HassioHelp](https://hassiohelp.eu)
 
@@ -66,7 +65,6 @@ To define the style you have to use **--** followed by the **Entity ID** you gav
 Updated the archive to version 0.9
 
 # Separate Garbage Collection ![Italiano](https://img.shields.io/badge/-italiano-blue)
-![Separate Garbage Collection - Full view](/docs/images/full-view.png)
 
 Questa guida si basa sull’articolo di [Raccolta differenziata](https://hassiohelp.eu/2019/03/17/raccolta-differenziata/), sui post di Caio Sweet sul [HassioHelp forum](https://forum.hassiohelp.eu/d/223-raccolta-differenziata-bisettimanale/132) e a una discussione con Caio Sweet.
 
