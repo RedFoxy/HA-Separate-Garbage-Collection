@@ -16,7 +16,10 @@ style:
   left: 5%
 filter:
   include:
-    - group: group.garbage_collection
+    - domain: sensor
+      attributes:
+        device_class: garbage_collection*
+        days: '= 0'
       options:
         type: custom:button-card
         entity: this.entity_id
