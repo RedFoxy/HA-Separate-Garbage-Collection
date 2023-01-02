@@ -25,19 +25,23 @@ To install that package, just download one of yaml file and put it /config/packa
 - **garbage_collection_no_notifica.yaml** - without notify
 
 Under directory **cards** you can find some card ready to use:
-- **all-trashcan.yaml** - Show all garbage cans and days missing until delivery.
+- **static-today-only.yaml** - Show only today garbage cans.
 
-![Example of all-trashcan.yaml's card](/docs/images/all-trashcan.png)
+![Example of static-today-only.yaml's card](/docs/images/static-today-only.png)
 
-- all-trashcan-only-today.yaml - Shows only the garbage cans that will be picked up on the day and buttons to switch view to all garbage cans and settings.
+- **static-all-garbage.yaml** - Show all garbage cans and days missing until delivery.
 
-![Example of all-trashcan-only-today.yaml's card](/docs/images/all-trashcan-only-today.png)
+![Example of static-all-garbage.yaml's card](/docs/images/static-all-garbage.png)
 
-- all-trashcan-all-days.yaml - Show all garbage cans and days missing until delivery and buttosn to switch view and settings.
+- **state-switch-today-only.yaml** - Shows only the garbage cans that will be picked up on the day and buttons to switch view to all garbage cans and settings.
 
-![Example of all-trashcan-all-days.yaml's card](/docs/images/all-trashcan-all-days.png)
+![Example of state-switch-today-only.yaml's card](/docs/images/state-switch-today-only.png)
 
-- icon-today.yaml - Show only one garbage can
+- **state-switch-all-garbage.yaml** - Show all garbage cans and days missing until delivery and buttons to switch view and settings.
+
+![Example of state-switch-all-garbage.yaml's card](/docs/images/state-switch-all-garbage.png)
+
+- **icon-today.yaml** - Show only one garbage can
 
 ![Example of icon-today.yaml's card](/docs/images/icon-today.png)
 
@@ -88,19 +92,23 @@ Per installare questo pacchetto dovete scaricare uno dei seguenti file yaml e me
 - **garbage_collection_no_notifica.yaml** - SENZA NOTIFICHE
 
 Nella directory cards sono presenti degli esempi di schede pronte per essere incollate nella vostra interfaccia, per farlo cliccate i **tre puntini in alto a destra**, quindi selezionate **Modifica Plancia** e **aggiungete una scheda** qualsiasi, in fine, cliccate su **Modifica editor del codice**, cancellate tutto il contenuto e incollate il codice della scheda che avete scelto:
-- all-trashcan.yaml - Mostra tutti i bidoni e i relativi giorni di consegna che mancano.
+- **static-all-garbage.yaml** - Mostra i bidoni da ritirare in giornata.
 
-![Example of all-trashcan.yaml's card](/docs/images/all-trashcan.png)
+![Example of static-all-garbage.yaml's card](/docs/images/static-all-garbage.png)
 
-- all-trashcan-only-today.yaml - Mostra solo i bidoni della giornata e i tasti in alto per cambiare la visuale e i settaggi
+- **static-all-garbage.yaml** - Mostra tutti i bidoni e i relativi giorni di consegna che mancano.
 
-![Example of all-trashcan-only-today.yaml's card](/docs/images/all-trashcan-only-today.png)
+![Example of static-all-garbage.yaml's card](/docs/images/static-all-garbage.png)
 
-- all-trashcan-all-days.yaml - Mostra tutti i bidoni e i tasti in alto per cambiare la visuale e i settaggi
+- **state-switch-today-only.yaml** - Mostra solo i bidoni della giornata e i tasti in alto per cambiare la visuale e i settaggi
 
-![Example of all-trashcan-all-days.yaml's card](/docs/images/all-trashcan-all-days.png)
+![Example of state-switch-today-only.yaml's card](/docs/images/state-switch-today-only.png)
 
-- icon-today.yaml - Mostra un solo bidone, utile per metterla dentro una card singola
+- **state-switch-all-garbage.yaml** - Mostra tutti i bidoni e i tasti in alto per cambiare la visuale e i settaggi
+
+![Example of state-switch-all-garbage.yaml's card](/docs/images/state-switch-all-garbage.png)
+
+- **icon-today.yaml** - Mostra un solo bidone, utile per metterla dentro una card singola
 
 ![Example of icon-today.yaml's card](/docs/images/icon-today.png)
 
