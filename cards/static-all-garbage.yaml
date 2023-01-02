@@ -1,0 +1,93 @@
+type: picture-elements
+image: /local/redfoxy/ha-separate-garbage-collection/background.png
+style: |
+  ha-card {
+    --plastica: hue-rotate(20deg) brightness(1.2);
+    --umido   : hue-rotate(00deg) grayscale(50%) brightness(0.7);
+    --carta   : hue-rotate(160deg) brightness(0.7);
+    --indif   : hue-rotate(0deg) grayscale(100%) brightness(0.7);
+    --vetro   : hue-rotate(100deg) brightness(0.7);
+    borde-radius: var(--ha-card-border-radius);
+    width: 100%;
+  }
+elements:
+  - type: custom:auto-entities
+    card_param: cards
+    card:
+      type: grid
+      square: false
+      columns: 6
+    sort:
+      attribute: days
+      method: attribute
+      numeric: true
+      count: 5
+      first: 0
+    style:
+      transform: translate(0%, 0%)
+      bottom: 0%
+      left: 5%
+    filter:
+      include:
+        - domain: sensor
+          attributes:
+            device_class: garbage_collection*
+            days: '>= 0'
+          options:
+            type: custom:button-card
+            entity: this.entity_id
+            triggers_update: all
+            show_entity_picture: true
+            show_icon: false
+            show_label: true
+            tap_action:
+              action: more-info
+            entity_picture: /local/redfoxy/ha-separate-garbage-collection/trashcan.png
+            label: |-
+              [[[
+                  const days = entity.attributes.days;
+                  switch (days) {
+                    case 0:
+                      return 'OGGI';
+                    case 1:
+                      return 'DOMANI';
+                    case 2:
+                      return 'Tra 2 giorni';
+                    default:
+                      if (entity.state.includes(",")) return entity.state.split(",")[1];
+                      else return 'Tra ' + days + ' giorni';
+                  }
+              ]]]
+            styles:
+              card:
+                - background: none
+                - box-shadow: none
+                - transform: none
+                - padding: 0px
+              entity_picture:
+                - width: 100%
+                - higth: 100%
+                - filter: |
+                    [[[
+                      return 'var(--'+ entity.attributes.friendly_name.toLowerCase().replace(' ','_') +')';
+                    ]]]
+              img_cell:
+                - transform: translate(0%, 10%)
+              name:
+                - transform: translate(0%, -355%)
+                - justify-content: center
+                - text-transform: lowercase
+                - font-variant: small-caps
+                - background-color: rgba(255, 255, 255, 0.5)
+                - color: black
+                - box-shadow: inset 0 0 1 0.5px  rgba(0, 0, 0, 1)
+                - padding: 5%
+                - font-size: 65%
+                - letter-spacing: 0.03vw
+                - border-radius: 10%
+              label:
+                - justify-self: center
+                - font-variant: small-caps
+                - font-weight: bold
+                - font-size: 65%
+                - padding-bottom: 5px
