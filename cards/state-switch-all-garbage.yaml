@@ -1,6 +1,6 @@
 type: custom:state-switch
 entity: hash
-default: today
+default: all
 transition: flip
 states:
   settings:
