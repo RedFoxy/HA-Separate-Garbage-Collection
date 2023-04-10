@@ -4,6 +4,8 @@ This is a fork of [Raccolta differenziata](https://hassiohelp.eu/2019/03/17/racc
 
 Before to follow that guide, please double check that you have all dependences.
 
+<a href="https://www.buymeacoffee.com/redfoxydarrest" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-blue.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;" ></a>
+
 ## Dependences
 1. [Garbage Collection](https://github.com/bruxy70/Garbage-Collection)
 2. [Auto-entities](https://github.com/thomasloven/lovelace-auto-entities)
@@ -69,6 +71,8 @@ Updated the archive to version 0.9
 Questa guida si basa sull’articolo di [Raccolta differenziata](https://hassiohelp.eu/2019/03/17/raccolta-differenziata/), sui post di Caio Sweet sul [HassioHelp forum](https://forum.hassiohelp.eu/d/223-raccolta-differenziata-bisettimanale/132) e a una discussione con Caio Sweet.
 
 Prima di iniziare assicuratevi di aver installato, tramite HACS o a mano, i seguenti custom components e custom cards:
+
+<a href="https://www.buymeacoffee.com/redfoxydarrest" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-blue.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;" ></a>
 
 ## Dipendenze
 1. [Garbage Collection](https://github.com/bruxy70/Garbage-Collection)
