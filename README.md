@@ -4,7 +4,7 @@ This is a fork of [Raccolta differenziata](https://hassiohelp.eu/2019/03/17/racc
 
 Before to follow that guide, please double check that you have all dependences.
 
-<a href="https://www.buymeacoffee.com/redfoxydarrest" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-blue.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;" ></a>
+<a href="https://paypal.me/redfoxydarrest" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-blue.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;" ></a>
 
 ## Dependences
 1. [Garbage Collection](https://github.com/bruxy70/Garbage-Collection)
@@ -72,7 +72,7 @@ Questa guida si basa sull’articolo di [Raccolta differenziata](https://hassioh
 
 Prima di iniziare assicuratevi di aver installato, tramite HACS o a mano, i seguenti custom components e custom cards:
 
-<a href="https://www.buymeacoffee.com/redfoxydarrest" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-blue.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;" ></a>
+<a href="https://paypal.me/redfoxydarrest" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-blue.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;" ></a>
 
 ## Dipendenze
 1. [Garbage Collection](https://github.com/bruxy70/Garbage-Collection)
