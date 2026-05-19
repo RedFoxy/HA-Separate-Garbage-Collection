@@ -1,6 +1,6 @@
 /**
  * HA Separate Garbage Collection Card
- * v4.0 - 19/05/2026
+ * v4.0.1 - 19/05/2026
  * Author: Massimo "RedFoxy Darrest" Cicciò
  * Git   : https://github.com/RedFoxy/ha-separate-garbage-collection
  *
@@ -14,7 +14,12 @@
  *   filter: hue-rotate(120deg) brightness(0.8)   manual override of the CSS filter to apply to the default icon (optional, auto-computed from color if not set)
  */
 
-const BASE_PATH  = '/local/redfoxy/ha-separate-garbage-collection/';
+// Dual-path: HACS installs to /hacsfiles/<repo>/, manual install uses the legacy path.
+// Detection is based on the URL of this script file at load time.
+const _SCRIPT_SRC = (document.currentScript || {}).src || '';
+const BASE_PATH = _SCRIPT_SRC.includes('/hacsfiles/')
+  ? '/hacsfiles/HA-Separate-Garbage-Collection/'   // HACS install
+  : '/local/redfoxy/ha-separate-garbage-collection/'; // manual install
 const TRASHBIN   = `${BASE_PATH}trashbin.svg`;
 const BG_DEFAULT = `${BASE_PATH}background.png`;
 
