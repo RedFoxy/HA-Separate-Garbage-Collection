@@ -1,0 +1,6 @@
+type: custom:ha-separate-garbage-collection-card
+calendar: calendar.waste
+days: 5
+show_title: true
+title: "This week's collections"
+show_weekday: false

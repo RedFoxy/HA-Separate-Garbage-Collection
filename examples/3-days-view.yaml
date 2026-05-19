@@ -1,0 +1,4 @@
+type: custom:ha-separate-garbage-collection-card
+calendar: calendar.waste
+days: 3
+background: /local/redfoxy/ha-separate-garbage-collection/background.png

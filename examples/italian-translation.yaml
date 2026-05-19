@@ -1,0 +1,19 @@
+type: custom:ha-separate-garbage-collection-card
+calendar: calendar.waste
+days: 5
+empty_text: "Nessuna raccolta"
+empty_symbol: "—"
+day_labels:
+  - "Oggi"
+  - "Domani"
+  - "Tra 2 giorni"
+  - "Tra 3 giorni"
+  - "Tra 4 giorni"
+short_days:
+  - "Dom"
+  - "Lun"
+  - "Mar"
+  - "Mer"
+  - "Gio"
+  - "Ven"
+  - "Sab"

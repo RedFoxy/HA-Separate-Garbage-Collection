@@ -1,0 +1,4 @@
+type: custom:ha-separate-garbage-collection-card
+calendar: calendar.waste
+days: 4
+column_width: 110

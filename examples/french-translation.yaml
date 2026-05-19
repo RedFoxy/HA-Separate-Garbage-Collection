@@ -1,0 +1,18 @@
+type: custom:ha-separate-garbage-collection-card
+calendar: calendar.waste
+days: 5
+empty_text: "Pas de collecte"
+day_labels:
+  - "Aujourd'hui"
+  - "Demain"
+  - "Dans 2 j."
+  - "Dans 3 j."
+  - "Dans 4 j."
+short_days:
+  - "Dim"
+  - "Lun"
+  - "Mar"
+  - "Mer"
+  - "Jeu"
+  - "Ven"
+  - "Sam"

@@ -1,0 +1,19 @@
+type: custom:ha-separate-garbage-collection-card
+calendar: calendar.spazzatura
+short_days:
+  - Domenica
+  - Lunedì
+  - Martedì
+  - Mercoledì
+  - Giovedì
+  - Venerdì
+  - Sabato
+day_labels:
+  - Oggi
+  - Domani
+  - Tra 2 giorni
+  - Tra 3 giorni
+  - Tra 4 giorni
+  - Tra 5 giorni
+  - Tra 6 giorni
+icon_size: 180

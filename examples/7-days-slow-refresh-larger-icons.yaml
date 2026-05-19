@@ -1,0 +1,6 @@
+type: custom:ha-separate-garbage-collection-card
+calendar: calendar.waste
+days: 7
+icon_size: 60
+refresh_interval: 3600
+show_weekday: true

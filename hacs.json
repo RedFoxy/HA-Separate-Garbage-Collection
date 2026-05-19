@@ -1,0 +1,7 @@
+{
+  "name": "Garbage Collection Card",
+  "description": "Lovelace card that displays waste collection schedules from any HA calendar. No Python, no custom integration required.",
+  "render_readme": true,
+  "content_in_root": false,
+  "filename": "garbage-collection-card.js"
+}
