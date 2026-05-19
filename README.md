@@ -382,19 +382,6 @@ For complete control, set `filter:` directly in the description.
 
 ---
 
-## License
-
-GNU General Public License v3.0
-
-[hacs-badge]: https://img.shields.io/badge/HACS-Custom-orange.svg
-[hacs-url]: https://github.com/hacs/integration
-[license-badge]: https://img.shields.io/badge/License-GNU3.0-yellow.svg
-[license-url]: LICENSE
-
----
-
----
-
 # 🇮🇹 Italiano
 
 > Card Lovelace per Home Assistant che mostra il calendario della raccolta differenziata — senza Python, senza integrazioni custom.
@@ -732,16 +719,3 @@ Impostando `color: #2196F3` nella descrizione dell'evento viene generato automat
 `hue-rotate(177deg) saturate(98%) brightness(0.98)` — nessuna configurazione manuale necessaria.
 
 Per controllo totale, scrivi `filter:` direttamente nella descrizione.
-
----
-
-## License
-
-GNU General Public License v3.0
-
-[hacs-badge]: https://img.shields.io/badge/HACS-Custom-orange.svg
-[hacs-url]: https://github.com/hacs/integration
-[license-badge]: https://img.shields.io/badge/License-GNU3.0-yellow.svg
-[license-url]: LICENSE
-
----
