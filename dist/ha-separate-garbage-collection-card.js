@@ -1,6 +1,6 @@
 /**
  * HA Separate Garbage Collection Card
- * v4.0.1 - 19/05/2026
+ * v4.0.2 - 19/05/2026
  * Author: Massimo "RedFoxy Darrest" Cicciò
  * Git   : https://github.com/RedFoxy/ha-separate-garbage-collection
  *
@@ -16,7 +16,16 @@
 
 // Dual-path: HACS installs to /hacsfiles/<repo>/, manual install uses the legacy path.
 // Detection is based on the URL of this script file at load time.
-const _SCRIPT_SRC = (document.currentScript || {}).src || '';
+// Note: document.currentScript is null when the script is loaded as an ES module
+// (HA loads Lovelace resources with type="module" by default), so we fall back
+// to scanning the DOM for the <script> tag that loaded this card.
+const _SCRIPT_SRC = (() => {
+  if (document.currentScript && document.currentScript.src) return document.currentScript.src;
+  const el = document.querySelector(
+    'script[src*="ha-separate-garbage-collection-card"], link[href*="ha-separate-garbage-collection-card"]'
+  );
+  return el ? (el.src || el.href || '') : '';
+})();
 const BASE_PATH = _SCRIPT_SRC.includes('/hacsfiles/')
   ? '/hacsfiles/HA-Separate-Garbage-Collection/'   // HACS install
   : '/local/redfoxy/ha-separate-garbage-collection/'; // manual install
