@@ -1,6 +1,6 @@
 /**
  * HA Separate Garbage Collection Card
- * v4.0.2 - 19/05/2026
+ * v4.1.0 - 20/05/2026
  * Author: Massimo "RedFoxy Darrest" Cicciò
  * Git   : https://github.com/RedFoxy/ha-separate-garbage-collection
  *
@@ -12,6 +12,12 @@
  *   color: #4CAF50        HEX color for the trash bin (optional, default is grey)
  *   icon:  wetwaste.png     custom image (optional, default icon is trashbin.svg)
  *   filter: hue-rotate(120deg) brightness(0.8)   manual override of the CSS filter to apply to the default icon (optional, auto-computed from color if not set)
+ *
+ * Multi-event days:
+ *   When a day has 2+ events, the bins are merged into a single multi-color bin
+ *   split into N equal slices (left/right or top/bottom). The custom `icon:` is
+ *   ignored in this case — the default trashbin.svg is used so the color split
+ *   stays consistent. Toggle via `merge_same_day` and `split_direction`.
  */
 
 // Dual-path: HACS installs to /hacsfiles/<repo>/, manual install uses the legacy path.
@@ -31,11 +37,145 @@ const BASE_PATH = _SCRIPT_SRC.includes('/hacsfiles/')
   : '/local/redfoxy/ha-separate-garbage-collection/'; // manual install
 const TRASHBIN   = `${BASE_PATH}trashbin.svg`;
 const BG_DEFAULT = `${BASE_PATH}background.png`;
+// Intrinsic aspect ratio of trashbin.svg (365 wide × 718 tall).
+// Used by the multi-color split so each slice equals 1/N of the bin —
+// not 1/N of the (square) bounding box, where the bin occupies only a
+// centered ~50%-wide strip and outer slices would be mostly empty space.
+const TRASHBIN_ASPECT = 365 / 718;
 
-const DAYS_SHORT = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-const DAYS_FULL  = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 const CACHE_TTL  = 5 * 60 * 1000;
 const MAX_AHEAD  = 45;
+
+// Bundled translations. Each language exposes:
+//   today           — label for the current day
+//   tomorrow        — label for day +1
+//   in_n_days(n)    — template function for day +N (handles plural forms where the
+//                     language requires it, e.g. Russian)
+//   short_days[7]   — Sun → Sat
+//   full_days[7]    — Sun → Sat
+//   title           — default card title (shown when show_title:true and title is blank)
+//   no_collection   — default empty_text for the single-day view
+//
+// Selection logic (see _currentLang): explicit `language:` config wins, otherwise
+// the card reads `hass.language` (normalised to the base tag — "zh-Hans" → "zh",
+// "en-US" → "en"), and falls back to `en` if no match. Per-string overrides in YAML
+// (title, empty_text, day_labels, short_days, full_days) always win over the bundle.
+const I18N = {
+  en: {
+    today: 'Today',
+    tomorrow: 'Tomorrow',
+    in_n_days: (n) => `in ${n} days`,
+    short_days: ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],
+    full_days: ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'],
+    title: 'Waste collection',
+    no_collection: 'No collection',
+  },
+  it: {
+    today: 'Oggi',
+    tomorrow: 'Domani',
+    in_n_days: (n) => `Tra ${n} giorni`,
+    short_days: ['Dom','Lun','Mar','Mer','Gio','Ven','Sab'],
+    full_days: ['Domenica','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'],
+    title: 'Raccolta differenziata',
+    no_collection: 'Nessuna raccolta',
+  },
+  fr: {
+    today: "Aujourd'hui",
+    tomorrow: 'Demain',
+    in_n_days: (n) => `Dans ${n} jours`,
+    short_days: ['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'],
+    full_days: ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'],
+    title: 'Collecte des déchets',
+    no_collection: 'Pas de collecte',
+  },
+  de: {
+    today: 'Heute',
+    tomorrow: 'Morgen',
+    in_n_days: (n) => `In ${n} Tagen`,
+    short_days: ['So','Mo','Di','Mi','Do','Fr','Sa'],
+    full_days: ['Sonntag','Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag'],
+    title: 'Müllabfuhr',
+    no_collection: 'Keine Abholung',
+  },
+  es: {
+    today: 'Hoy',
+    tomorrow: 'Mañana',
+    in_n_days: (n) => `En ${n} días`,
+    short_days: ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'],
+    full_days: ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'],
+    title: 'Recogida de residuos',
+    no_collection: 'Sin recogida',
+  },
+  pt: {
+    today: 'Hoje',
+    tomorrow: 'Amanhã',
+    in_n_days: (n) => `Em ${n} dias`,
+    short_days: ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'],
+    full_days: ['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado'],
+    title: 'Coleta de lixo',
+    no_collection: 'Sem coleta',
+  },
+  nl: {
+    today: 'Vandaag',
+    tomorrow: 'Morgen',
+    in_n_days: (n) => `Over ${n} dagen`,
+    short_days: ['Zo','Ma','Di','Wo','Do','Vr','Za'],
+    full_days: ['Zondag','Maandag','Dinsdag','Woensdag','Donderdag','Vrijdag','Zaterdag'],
+    title: 'Afvalinzameling',
+    no_collection: 'Geen inzameling',
+  },
+  hu: {
+    today: 'Ma',
+    tomorrow: 'Holnap',
+    in_n_days: (n) => `${n} nap múlva`,
+    short_days: ['Vas','Hét','Ke','Sze','Csü','Pén','Szo'],
+    full_days: ['Vasárnap','Hétfő','Kedd','Szerda','Csütörtök','Péntek','Szombat'],
+    title: 'Hulladékgyűjtés',
+    no_collection: 'Nincs gyűjtés',
+  },
+  ru: {
+    today: 'Сегодня',
+    tomorrow: 'Завтра',
+    // Russian plurals: 1 → "день", 2-4 → "дня", 5+ → "дней" (with exceptions on -11/-14)
+    in_n_days: (n) => {
+      const mod10 = n % 10, mod100 = n % 100;
+      if (mod10 === 1 && mod100 !== 11) return `Через ${n} день`;
+      if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return `Через ${n} дня`;
+      return `Через ${n} дней`;
+    },
+    short_days: ['Вс','Пн','Вт','Ср','Чт','Пт','Сб'],
+    full_days: ['Воскресенье','Понедельник','Вторник','Среда','Четверг','Пятница','Суббота'],
+    title: 'Вывоз мусора',
+    no_collection: 'Сбора нет',
+  },
+  hi: {
+    today: 'आज',
+    tomorrow: 'कल',
+    in_n_days: (n) => `${n} दिनों में`,
+    short_days: ['रवि','सोम','मंगल','बुध','गुरु','शुक्र','शनि'],
+    full_days: ['रविवार','सोमवार','मंगलवार','बुधवार','गुरुवार','शुक्रवार','शनिवार'],
+    title: 'कचरा संग्रहण',
+    no_collection: 'कोई संग्रह नहीं',
+  },
+  zh: {
+    today: '今天',
+    tomorrow: '明天',
+    in_n_days: (n) => `${n}天后`,
+    short_days: ['日','一','二','三','四','五','六'],
+    full_days: ['星期日','星期一','星期二','星期三','星期四','星期五','星期六'],
+    title: '垃圾分类收集',
+    no_collection: '无收集',
+  },
+  ja: {
+    today: '今日',
+    tomorrow: '明日',
+    in_n_days: (n) => `${n}日後`,
+    short_days: ['日','月','火','水','木','金','土'],
+    full_days: ['日曜日','月曜日','火曜日','水曜日','木曜日','金曜日','土曜日'],
+    title: 'ごみ収集',
+    no_collection: '収集なし',
+  },
+};
 
 // Computes a calibrated CSS filter based on the real trash can colors (trashbin.svg).
 // Base color: #f68b22  →  hsl(30°, 92%, 55%)
@@ -97,20 +237,24 @@ class HASeparateGarbageCollectionCard extends HTMLElement {
       show_before      : '09:00',
       show_title       : false,   // show/hide the card title bar
       show_header      : false,   // alias for show_title (backward compat)
-      title            : '',      // card title text (default: "Waste collection")
+      title            : null,    // card title text — falls back to the localised default
       show_labels      : true,    // show garbage type name overlaid on the bin
       show_day_labels  : true,    // show the day-offset label (Today / Tomorrow / in N days…)
-      show_weekday     : true,    // show the short weekday name (Mon, Tue…) below the offset label
+      show_weekday     : true,    // show the weekday name below the offset label
+      weekday_format   : 'short', // 'short' (Mon, Tue…) | 'full' (Monday, Tuesday…)
+      language         : null,    // force a language code (e.g. 'it'); null = auto from hass.language
       day_labels       : null,    // override offset labels — auto-generated if null
-                                  //   auto: ["Today","Tomorrow","in 2 days","in 3 days",…]
+                                  //   auto: localised "Today/Tomorrow/in N days"
       short_days       : null,    // override short weekday names (7 entries, Sun–Sat)
-                                  //   default: ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"]
+      full_days        : null,    // override full weekday names (7 entries, Sun–Sat)
       skip_empty       : true,    // skip days with no collection
       refresh_interval : 300,     // seconds between calendar re-fetches
       icon_size        : null,    // px — auto-sized based on days count if null
       column_width     : null,    // px — fixed column width; null = distribute equally (1fr)
-      empty_text       : 'No collection',
+      empty_text       : null,    // single-day "no collection" text — falls back to localised default
       empty_symbol     : '·',
+      merge_same_day   : true,        // merge 2+ events into a single multi-color bin
+      split_direction  : 'vertical',  // 'vertical' (left/right) | 'horizontal' (top/bottom)
       ...cfg,
     };
   }
@@ -166,6 +310,12 @@ class HASeparateGarbageCollectionCard extends HTMLElement {
         if (!ds) continue;
         (this._cache[ds] = this._cache[ds] || []).push(this._parse(ev));
       }
+      // Sort each day's events alphabetically by name so the rendering order is
+      // deterministic (left→right or top→bottom in the multi-color bin, and
+      // left→right when bins are shown side by side).
+      for (const ds in this._cache) {
+        this._cache[ds].sort((a, b) => a.name.localeCompare(b.name));
+      }
       this._fetched = Date.now();
     } catch(e) {
       console.error('[GarbageCollection] Calendar fetch error:', e);
@@ -207,21 +357,46 @@ class HASeparateGarbageCollectionCard extends HTMLElement {
     return d;
   }
 
-  // Returns offset labels: ["Today","Tomorrow","in 2 days",...] — auto or user-defined
+  // Resolves the active language. Priority: explicit `language:` config →
+  // `hass.language` (normalised to its base tag) → 'en' fallback.
+  _currentLang() {
+    const forced = this._cfg.language;
+    if (forced && I18N[forced]) return forced;
+    const haLang = this._hass?.language || this._hass?.selectedLanguage || 'en';
+    const base   = String(haLang).toLowerCase().split('-')[0];
+    return I18N[base] ? base : 'en';
+  }
+
+  // Returns the bundled translation object for the active language.
+  _i18n() {
+    return I18N[this._currentLang()] || I18N.en;
+  }
+
+  // Returns offset labels: [today, tomorrow, "in 2 days", …] — auto or user-defined
   _dayLabels() {
     if (Array.isArray(this._cfg.day_labels) && this._cfg.day_labels.length) {
       return this._cfg.day_labels;
     }
-    const out = ['Today', 'Tomorrow'];
-    for (let i = 2; i < MAX_AHEAD; i++) out.push(`in ${i} days`);
+    const t = this._i18n();
+    const out = [t.today, t.tomorrow];
+    for (let i = 2; i < MAX_AHEAD; i++) out.push(t.in_n_days(i));
     return out;
   }
 
   // Returns short weekday names (Sun–Sat) — user-overridable via short_days config
   _shortDays() {
-    return (Array.isArray(this._cfg.short_days) && this._cfg.short_days.length === 7)
-      ? this._cfg.short_days
-      : DAYS_SHORT;
+    if (Array.isArray(this._cfg.short_days) && this._cfg.short_days.length === 7) {
+      return this._cfg.short_days;
+    }
+    return this._i18n().short_days;
+  }
+
+  // Returns full weekday names (Sun–Sat) — user-overridable via full_days config
+  _fullDays() {
+    if (Array.isArray(this._cfg.full_days) && this._cfg.full_days.length === 7) {
+      return this._cfg.full_days;
+    }
+    return this._i18n().full_days;
   }
 
   // Day selection — skips empty days when skip_empty is true
@@ -233,6 +408,7 @@ class HASeparateGarbageCollectionCard extends HTMLElement {
     let offset   = 0;
 
     const shortNames = this._shortDays();
+    const fullNames  = this._fullDays();
     const labels     = this._dayLabels();
 
     while (result.length < count && offset < MAX_AHEAD) {
@@ -245,7 +421,7 @@ class HASeparateGarbageCollectionCard extends HTMLElement {
         result.push({
           ds,
           short      : shortNames[d.getDay()],
-          full       : DAYS_FULL[d.getDay()],
+          full       : fullNames[d.getDay()],
           offsetLabel: labels[offset] ?? `in ${offset} days`,
           isToday    : offset === 0,
           isTomorrow : offset === 1,
@@ -294,6 +470,93 @@ class HASeparateGarbageCollectionCard extends HTMLElement {
     </div>`;
   }
 
+  // Dispatcher: when merge_same_day is on and the day has 2+ events,
+  // produce a single multi-color bin; otherwise fall back to N separate bins.
+  _binsForDay(types, size) {
+    if (this._cfg.merge_same_day !== false && types.length >= 2) {
+      return this._multiBinHTML(types, size);
+    }
+    return types.map(t => this._binHTML(t, size)).join('');
+  }
+
+  // Multi-color bin: stacks N copies of the default trashbin.svg, each clipped
+  // to its own vertical or horizontal slice and tinted with the event's CSS filter.
+  // Custom per-event icons are intentionally ignored — the split only works on the
+  // default monochrome SVG.
+  _multiBinHTML(types, size) {
+    const dir   = this._cfg.split_direction === 'horizontal' ? 'h' : 'v';
+    const n     = types.length;
+    const src   = TRASHBIN;
+    const showLbl = this._cfg.show_labels !== false;
+
+    // With object-fit:contain in a square box, the trashbin (aspect 365:718)
+    // fills the full height but only a centered ~50%-wide strip horizontally.
+    // For vertical splits we therefore clip the bin's actual horizontal range
+    // so each slice equals 1/N of the bin (not 1/N of the box, which would
+    // make outer slices mostly empty space). For horizontal splits the bin
+    // fills the full height, so the 0-100% range is correct.
+    const binStartPct = dir === 'v' ? (1 - TRASHBIN_ASPECT) / 2 * 100 : 0;
+    const binEndPct   = dir === 'v' ? (1 + TRASHBIN_ASPECT) / 2 * 100 : 100;
+    const binSpan     = binEndPct - binStartPct;
+
+    const layers = types.map((t, i) => {
+      const startPct = binStartPct + (i     / n) * binSpan;
+      const endPct   = 100 - (binStartPct + ((i + 1) / n) * binSpan);
+      const clip = dir === 'v'
+        ? `inset(0 ${endPct}% 0 ${startPct}%)`
+        : `inset(${startPct}% 0 ${endPct}% 0)`;
+      const filter = t.cssFilter ? `filter:${t.cssFilter};` : '';
+      return `<img src="${src}" width="${size}" height="${size}" alt=""
+        style="position:absolute;inset:0;object-fit:contain;clip-path:${clip};${filter}">`;
+    }).join('');
+
+    const labels = showLbl ? this._stackedLabelsHTML(types, size) : '';
+    const tip    = types.map(t => t.name).join(' / ');
+
+    return `<div class="bin">
+      <div style="position:relative;width:${size}px;height:${size}px;flex-shrink:0"
+           title="${tip}">
+        ${layers}
+        ${labels}
+      </div>
+    </div>`;
+  }
+
+  // Stacked labels for the multi-color bin: one <span> per event, vertically stacked,
+  // positioned over the body of the bin (top:36%) — same anchor as the single-event label.
+  // Font size: stays at the regular 13px when the bin is large enough (size >= 100px),
+  // otherwise shrinks gracefully as event count grows so multi-event labels stay legible
+  // on smaller bins. Single-line with ellipsis.
+  _stackedLabelsHTML(types, size) {
+    const maxCpl = Math.floor(size / 8.5);
+    const fontPx = size >= 100
+      ? 13
+      : Math.max(9, Math.round(13 - (types.length - 1) * 1.5));
+
+    const items = types.map(t => {
+      const hasSpace = t.name.includes(' ');
+      const tooLong  = t.name.length > maxCpl;
+      const display  = (!hasSpace && tooLong)
+        ? t.name.slice(0, maxCpl - 1) + '.'
+        : t.name;
+      return `<span style="
+        display:block;
+        font-size:${fontPx}px; font-weight:700; line-height:1.1;
+        overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+        padding:0 2px;
+      ">${display}</span>`;
+    }).join('');
+
+    return `<div style="
+      position:absolute; top:36%; left:0; right:0;
+      text-align:center; color:#fff;
+      text-shadow:0 1px 3px rgba(0,0,0,0.85), 0 0 6px rgba(0,0,0,0.6);
+      pointer-events:none;
+      display:flex; flex-direction:column; gap:1px;
+      box-sizing:border-box;
+    ">${items}</div>`;
+  }
+
   _render() {
     const count = this._cfg.days || 5;
     const days  = this._getDays();
@@ -310,8 +573,9 @@ class HASeparateGarbageCollectionCard extends HTMLElement {
     const sz    = this._cfg.icon_size || 64;
     const bg    = this._cfg.background || BG_DEFAULT;
     const showT = this._cfg.show_title || this._cfg.show_header;
-    const title = this._cfg.title || day?.offsetLabel || 'Today';
-    const empty = this._cfg.empty_text || 'No collection';
+    const t     = this._i18n();
+    const title = this._cfg.title || day?.offsetLabel || t.today;
+    const empty = this._cfg.empty_text || t.no_collection;
 
     if (!day) {
       this.shadowRoot.innerHTML = `
@@ -346,7 +610,7 @@ class HASeparateGarbageCollectionCard extends HTMLElement {
         ${showT ? `<div class="card-title">${title}</div>` : ''}
         <div class="row">
           ${day.types.length
-            ? day.types.map(t => this._binHTML(t, sz)).join('')
+            ? this._binsForDay(day.types, sz)
             : `<span class="empty">${empty}</span>`}
         </div>
       </ha-card>`;
@@ -361,19 +625,22 @@ class HASeparateGarbageCollectionCard extends HTMLElement {
     const empty   = this._cfg.empty_symbol || '·';
     const ncols   = days.length || count;
 
+    const useFullWeekday = this._cfg.weekday_format === 'full';
+
     const cols = days.map(day => {
       const top = day.offsetLabel;  // e.g. "Today", "Tomorrow", "in 2 days"…
+      const wd  = useFullWeekday ? day.full : day.short;
       const _cw = this._cfg.column_width;
       const _colStyle = _cw ? `style="width:${_cw}px;min-width:${_cw}px;flex:none"` : '';
       return `
         <div class="col" ${_colStyle}>
           ${showTop || showSub ? `<div class="col-head">
             ${showTop ? `<div class="lbl-top">${top}</div>` : ''}
-            ${showSub ? `<div class="lbl-sub">${day.short}</div>` : ''}
+            ${showSub ? `<div class="lbl-sub">${wd}</div>` : ''}
           </div>` : ''}
           <div class="bins">
             ${day.types.length
-              ? day.types.map(t => this._binHTML(t, sz)).join('')
+              ? this._binsForDay(day.types, sz)
               : `<span class="none">${empty}</span>`}
           </div>
         </div>`;
@@ -412,7 +679,7 @@ class HASeparateGarbageCollectionCard extends HTMLElement {
       </style>
       <ha-card>
         ${(this._cfg.show_title || this._cfg.show_header)
-          ? `<div class="card-title">${this._cfg.title || 'Waste collection'}</div>`
+          ? `<div class="card-title">${this._cfg.title || this._i18n().title}</div>`
           : ''}
         <div class="grid">${cols}</div>
       </ha-card>`;
@@ -438,15 +705,17 @@ class HASeparateGarbageCollectionCard extends HTMLElement {
       days            : 5,
       show_before     : '09:00:00',
       show_title      : false,
-      title           : '',
       show_labels     : true,
       show_day_labels : true,
       show_weekday    : true,
       skip_empty      : true,
       refresh_interval: 300,
-      empty_text      : 'No collection',
       empty_symbol    : '·',
       icon_size       : 82,
+      merge_same_day  : true,
+      split_direction : 'vertical',
+      weekday_format  : 'short',
+      // language: null  → auto-detect from hass.language
     };
   }
 
@@ -531,6 +800,42 @@ class HASeparateGarbageCollectionCard extends HTMLElement {
                   name    : 'skip_empty',
                   selector: { boolean: {} },
                 },
+                {
+                  name    : 'merge_same_day',
+                  selector: { boolean: {} },
+                },
+                {
+                  name    : 'split_direction',
+                  selector: { select: { mode: 'dropdown', options: [
+                    { value: 'vertical',   label: 'Vertical (left/right)' },
+                    { value: 'horizontal', label: 'Horizontal (top/bottom)' },
+                  ] } },
+                },
+                {
+                  name    : 'weekday_format',
+                  selector: { select: { mode: 'dropdown', options: [
+                    { value: 'short', label: 'Short (Mon, Tue…)' },
+                    { value: 'full',  label: 'Full (Monday, Tuesday…)' },
+                  ] } },
+                },
+                {
+                  name    : 'language',
+                  selector: { select: { mode: 'dropdown', options: [
+                    { value: '',   label: 'Auto (from Home Assistant)' },
+                    { value: 'en', label: 'English' },
+                    { value: 'it', label: 'Italiano' },
+                    { value: 'fr', label: 'Français' },
+                    { value: 'de', label: 'Deutsch' },
+                    { value: 'es', label: 'Español' },
+                    { value: 'pt', label: 'Português' },
+                    { value: 'nl', label: 'Nederlands' },
+                    { value: 'hu', label: 'Magyar' },
+                    { value: 'ru', label: 'Русский' },
+                    { value: 'hi', label: 'हिन्दी' },
+                    { value: 'zh', label: '中文' },
+                    { value: 'ja', label: '日本語' },
+                  ] } },
+                },
               ],
             },
           ],
@@ -606,6 +911,10 @@ class HASeparateGarbageCollectionCard extends HTMLElement {
           icon_size       : 'Icon size',
           column_width    : 'Fixed column width',
           refresh_interval: 'Refresh interval',
+          merge_same_day  : 'Merge same-day events',
+          split_direction : 'Split direction',
+          weekday_format  : 'Weekday name format',
+          language        : 'Language',
         };
         return labels[schema.name] ?? undefined;
       },
@@ -626,6 +935,10 @@ class HASeparateGarbageCollectionCard extends HTMLElement {
           icon_size       : 'Override icon size in px. Leave empty for automatic sizing.',
           column_width    : 'Fix each column to this width in px. Leave empty to distribute equally.',
           refresh_interval: 'How often to re-fetch the calendar, in seconds (default: 300).',
+          merge_same_day  : 'Combine multiple events on the same day into a single multi-color bin.',
+          split_direction : 'How the multi-color bin is divided when merging same-day events.',
+          weekday_format  : 'Short (Mon, Tue…) or full (Monday, Tuesday…) name shown under each day. Localise via short_days / full_days.',
+          language        : 'Force the UI language. Leave on "Auto" to follow the Home Assistant interface language. Per-string overrides in YAML still win.',
         };
         return helpers[schema.name] ?? undefined;
       },

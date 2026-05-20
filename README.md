@@ -4,8 +4,8 @@
 
 [![HACS Custom][hacs-badge]][hacs-url]
 [![License: GNU3.0][license-badge]][license-url]
-![version](https://img.shields.io/badge/version-4.0.0-green)
-![release date](https://img.shields.io/badge/relese%20date-19%2F05%2F2026-blue)
+![version](https://img.shields.io/badge/version-4.1.0-green)
+![release date](https://img.shields.io/badge/relese%20date-20%2F05%2F2026-blue)
 
 This is a fork of [Raccolta differenziata](https://hassiohelp.eu/2019/03/17/raccolta-differenziata/) created by Enrico & Caio on [HassioHelp](https://hassiohelp.eu), from which only a redesigned version of the background and trash bin remain.
 
@@ -29,8 +29,10 @@ The card reads events from any Home Assistant calendar (Local Calendar, Google C
 - **Custom icons** — use `icon: filename.png` to show a completely custom image per waste type
 - **Skip empty days** — with `skip_empty: true` (default) days with no collection are silently skipped; the card always shows the next N days _that have something to collect_
 - **Smart label** — the waste type name is overlaid on the bin image just below the lid; multi-word names wrap to two lines; single long words are abbreviated (e.g. `Indiffer.`)
+- **Multi-event day** — when a day has 2+ collections, the bins are merged into a single multi-colour bin split into `N` equal slices — each exactly `1/N` of the bin (`vertical` left/right or `horizontal` top/bottom) — with the event names stacked over the body of the bin **in ascending alphabetical order**, so the layout stays stable across refreshes. Toggle with `merge_same_day` and `split_direction`
 - **Day-change logic** — `show_before` defines a daily cut-off time. Before that time the card shows today's collection; after it, tomorrow's — so in the evening you always see what to prepare for the next morning
-- **Fully translatable** — override day labels, short weekday names and all UI strings directly in the card YAML
+- **Built-in translations** — 12 bundled languages (`en`, `it`, `fr`, `de`, `es`, `pt`, `nl`, `hu`, `ru`, `hi`, `zh`, `ja`) covering day labels, weekday names, default title and the "no collection" text. The card auto-detects the active Home Assistant language; override with `language: it` (or any code) in the YAML
+- **Fully translatable** — even if your locale isn't bundled, you can override every UI string directly in the card YAML (`day_labels`, `short_days`, `full_days`, `title`, `empty_text`)
 
 ---
 
@@ -53,7 +55,7 @@ Default asset folder: `/config/www/redfoxy/ha-separate-garbage-collection/`
 
 1. Open HACS → **Frontend**
 2. Click ⋮ → **Custom repositories**
-3. Add `https://github.com/RedFoxy/HA-Separate-Garbage-Collection` — category **Lovelace**
+3. Add `https://github.com/RedFoxy/HA-Separate-Garbage-Collection` — category **Dashboard**
 4. Click **Download**
 5. Reload your browser
 
@@ -104,6 +106,8 @@ filter: hue-rotate(92deg) saturate(42%) brightness(1.07)
 
 > **Note:** if `icon` is omitted, the card displays `trashcan.svg` tinted with a CSS filter computed from `color`. The filter is calibrated to the base SVG palette (`#f68b22`).
 
+> ⚠️ **`icon` is ignored on multi-event days.** When a day has 2+ collections and `merge_same_day: true` (default), the card draws a single multi-colour `trashcan.svg` divided into N slices — the per-event `icon:` field is **not used** in this case, because the colour split only works on the base monochrome SVG. The custom icon is still used on days where that waste type is the only collection. Set `merge_same_day: false` to keep your custom icons even when multiple events overlap.
+
 ---
 
 ## Card options
@@ -128,15 +132,20 @@ Backward-compatible aliases: `custom:garbage-collection-day`, `custom:garbage-co
 | `title` | string | `"Waste collection"` | Card title text (only shown when `show_title: true`) |
 | `show_labels` | bool | `true` | Overlay the waste type name on the bin icon |
 | `show_day_labels` | bool | `true` | Show the day-offset label (Today / Tomorrow / in N days…) |
-| `show_weekday` | bool | `true` | Show short weekday name (Mon, Tue…) below the offset label |
-| `day_labels` | list | auto | Override day-offset labels (auto: Today, Tomorrow, in 2 days…) |
-| `short_days` | list | English | Override short weekday names — exactly 7 entries, Sun → Sat |
+| `show_weekday` | bool | `true` | Show the weekday name below the offset label |
+| `weekday_format` | string | `"short"` | Format of the weekday name: `short` (Mon, Tue…) or `full` (Monday, Tuesday…) |
+| `language` | string | `null` (auto) | Force the UI language. `null` = read `hass.language` and auto-pick. Bundled: `en`, `it`, `fr`, `de`, `es`, `pt`, `nl`, `hu`, `ru`, `hi`, `zh`, `ja` |
+| `day_labels` | list | auto | Override day-offset labels (auto: localised Today, Tomorrow, in N days) |
+| `short_days` | list | auto | Override short weekday names — exactly 7 entries, Sun → Sat (auto-localised when omitted) |
+| `full_days` | list | auto | Override full weekday names — exactly 7 entries, Sun → Sat (auto-localised when omitted, used when `weekday_format: full`) |
 | `skip_empty` | bool | `true` | Skip days without a collection event |
 | `refresh_interval` | number | `300` | Seconds between calendar refreshes (minimum: 10) |
 | `icon_size` | number | auto | Bin icon size in px (auto: 64 for `days:1`, 52 otherwise) |
 | `column_width` | number | auto | Fixed column width in px. When set, each column is exactly that wide; without it columns share the available space equally |
 | `empty_text` | string | `"No collection"` | Text shown in single-day view when no collection is found |
 | `empty_symbol` | string | `"·"` | Symbol in empty columns (multi-day view) |
+| `merge_same_day` | bool | `true` | Merge same-day events into a single multi-colour bin. When a day has 2+ events, only one bin is rendered with N coloured slices and the event names stacked above. Per-event `icon:` is ignored in this mode |
+| `split_direction` | string | `"vertical"` | How the multi-colour bin is divided: `vertical` (left/right) or `horizontal` (top/bottom) |
 
 ---
 
@@ -222,28 +231,36 @@ column_width: 110
 
 ---
 
+### Multi-event day — horizontal split
+
+```yaml
+type: custom:ha-separate-garbage-collection-card
+calendar: calendar.waste
+days: 5
+merge_same_day: true
+split_direction: horizontal
+icon_size: 180
+```
+
+[![Multi-event day — horizontal split](/examples/images/horizontal-split.png)](/examples/horizontal-split.yaml)
+
+When a day has more than one collection (e.g. Paper + Glass on the same Monday), the bin is rendered as a single icon split into horizontal stripes — one per waste type — with the event names stacked over the body of the bin.
+
+> ⚠️ **Custom icons are not used in this mode.** The split needs the monochrome `trashcan.svg` to tint each slice independently, so any per-event `icon:` field is ignored on merged days. Your custom icon still appears on days where the same waste type is the only collection — and you can always set `merge_same_day: false` to disable the merge and keep custom icons everywhere.
+
+Set `merge_same_day: false` to return to the original behaviour (one bin per event, side by side).
+
+---
+
 ### Italian translation
 
 ```yaml
 type: custom:ha-separate-garbage-collection-card
 calendar: calendar.waste
 days: 5
-empty_text: "Nessuna raccolta"
-empty_symbol: "—"
-day_labels:
-  - "Oggi"
-  - "Domani"
-  - "Tra 2 giorni"
-  - "Tra 3 giorni"
-  - "Tra 4 giorni"
-short_days:
-  - "Dom"
-  - "Lun"
-  - "Mar"
-  - "Mer"
-  - "Gio"
-  - "Ven"
-  - "Sab"
+empty_text: Nessuna raccolta
+empty_symbol: —
+language: it
 ```
 
 [![Italian translation](/examples/images/italian-translation.png)](/examples/italian-translation.yaml)
@@ -256,21 +273,8 @@ short_days:
 type: custom:ha-separate-garbage-collection-card
 calendar: calendar.waste
 days: 5
-empty_text: "Pas de collecte"
-day_labels:
-  - "Aujourd'hui"
-  - "Demain"
-  - "Dans 2 j."
-  - "Dans 3 j."
-  - "Dans 4 j."
-short_days:
-  - "Dim"
-  - "Lun"
-  - "Mar"
-  - "Mer"
-  - "Jeu"
-  - "Ven"
-  - "Sam"
+empty_text: Pas de collecte
+language: fr
 ```
 
 [![French translation](/examples/images/french-translation.png)](/examples/french-translation.yaml)
@@ -400,8 +404,10 @@ La card legge gli eventi da qualsiasi calendario di Home Assistant (Local Calend
 - **Icone personalizzate** — usa `icon: nomefile.png` per mostrare un'immagine diversa per ogni tipo di rifiuto
 - **Salta i giorni vuoti** — con `skip_empty: true` (default) i giorni senza raccolta vengono saltati silenziosamente; la card mostra sempre i prossimi N giorni _con qualcosa da portare fuori_
 - **Etichetta intelligente** — il nome del tipo di rifiuto è sovrapposto sull'immagine del cestino, appena sotto il coperchio; i nomi con spazi vanno a capo su due righe; le parole singole troppo lunghe vengono abbreviate (es. `Indiffer.`)
+- **Più raccolte nello stesso giorno** — quando un giorno ha 2 o più raccolte, i cestini vengono uniti in un unico cestino multicolore diviso in `N` fette uguali — ciascuna esattamente `1/N` del cestino (`vertical` sinistra/destra oppure `horizontal` alto/basso) — con i nomi degli eventi impilati sopra il corpo del cestino **in ordine alfabetico crescente**, così il layout resta stabile a ogni refresh. Si controlla con `merge_same_day` e `split_direction`
 - **Logica cambio giorno** — `show_before` definisce un orario di taglio giornaliero. Prima di quell'ora la card mostra la raccolta di oggi; dopo, quella di domani — così la sera vedi sempre cosa preparare
-- **Completamente traducibile** — sostituisci le label dei giorni, i nomi brevi dei giorni della settimana e tutte le stringhe UI direttamente nel YAML della card
+- **Traduzioni integrate** — 12 lingue già pronte (`en`, `it`, `fr`, `de`, `es`, `pt`, `nl`, `hu`, `ru`, `hi`, `zh`, `ja`) per le label dei giorni, nomi dei giorni della settimana, titolo predefinito e testo "nessuna raccolta". La card rileva automaticamente la lingua di Home Assistant; puoi forzarla con `language: it` (o un altro codice) nello YAML
+- **Completamente traducibile** — anche se la tua lingua non è nel bundle, puoi sovrascrivere ogni stringa UI nello YAML (`day_labels`, `short_days`, `full_days`, `title`, `empty_text`)
 
 ---
 
@@ -424,7 +430,7 @@ Cartella asset predefinita: `/config/www/redfoxy/ha-separate-garbage-collection/
 
 1. Apri HACS → **Frontend**
 2. Clicca ⋮ → **Repository personalizzati**
-3. Aggiungi `https://github.com/RedFoxy/HA-Separate-Garbage-Collection` — categoria **Lovelace**
+3. Aggiungi `https://github.com/RedFoxy/HA-Separate-Garbage-Collection` — categoria **Dashboard**
 4. Clicca **Scarica**
 5. Ricarica il browser
 
@@ -473,6 +479,8 @@ filter: hue-rotate(92deg) saturate(42%) brightness(1.07)
 | `icon` | ❌ | Nome file immagine personalizzata (in `BASE_PATH`) o path assoluto che inizia con `/` |
 | `filter` | ❌ | Override manuale del filtro CSS — salta il calcolo automatico |
 
+> ⚠️ **`icon` viene ignorato nei giorni con più raccolte.** Quando in un giorno ci sono 2 o più eventi e `merge_same_day: true` (default), la card disegna un unico `trashcan.svg` multicolore diviso in N fette — in questo caso il campo `icon:` di ogni singolo evento **non viene usato**, perché la divisione per colori funziona solo sul SVG di base monocromatico. L'icona personalizzata viene comunque mostrata nei giorni in cui quel tipo di rifiuto è l'unica raccolta. Imposta `merge_same_day: false` per mantenere le icone custom anche quando più eventi coincidono.
+
 ---
 
 ## Opzioni della card
@@ -497,15 +505,20 @@ Alias retrocompatibili: `custom:garbage-collection-day`, `custom:garbage-collect
 | `title` | stringa | `"Waste collection"` | Testo del titolo (visibile solo con `show_title: true`) |
 | `show_labels` | bool | `true` | Mostra il nome del tipo sovrapposto sul cestino |
 | `show_day_labels` | bool | `true` | Mostra la label offset del giorno (Oggi / Domani / Tra N giorni…) |
-| `show_weekday` | bool | `true` | Mostra il nome breve del giorno (Lun, Mar…) sotto la label offset |
-| `day_labels` | lista | auto | Sostituisce le label offset — auto: Today, Tomorrow, in 2 days… |
-| `short_days` | lista | inglese | Sostituisce i nomi brevi dei giorni — esattamente 7 voci, Dom → Sab |
+| `show_weekday` | bool | `true` | Mostra il nome del giorno sotto la label offset |
+| `weekday_format` | stringa | `"short"` | Formato del nome del giorno: `short` (Lun, Mar…) o `full` (Lunedì, Martedì…) |
+| `language` | stringa | `null` (auto) | Forza la lingua. `null` = legge `hass.language` e sceglie da sola. Disponibili: `en`, `it`, `fr`, `de`, `es`, `pt`, `nl`, `hu`, `ru`, `hi`, `zh`, `ja` |
+| `day_labels` | lista | auto | Sostituisce le label offset — auto: "Oggi/Domani/Tra N giorni" localizzate |
+| `short_days` | lista | auto | Sostituisce i nomi brevi dei giorni — esattamente 7 voci, Dom → Sab (auto-localizzati se omessi) |
+| `full_days` | lista | auto | Sostituisce i nomi lunghi dei giorni — esattamente 7 voci, Dom → Sab (auto-localizzati se omessi, usati con `weekday_format: full`) |
 | `skip_empty` | bool | `true` | Salta i giorni senza raccolta |
 | `refresh_interval` | numero | `300` | Secondi tra un aggiornamento e l'altro (minimo: 10) |
 | `icon_size` | numero | auto | Dimensione icona cestino in px (auto: 64 per `days:1`, 52 altrimenti) |
 | `column_width` | numero | auto | Larghezza fissa di ogni colonna in px. Se impostata, ogni colonna occupa esattamente quella larghezza; senza di essa le colonne si dividono lo spazio equamente |
 | `empty_text` | stringa | `"No collection"` | Testo per la vista giornaliera quando non c'è raccolta |
 | `empty_symbol` | stringa | `"·"` | Simbolo nelle colonne vuote (vista multi-giorno) |
+| `merge_same_day` | bool | `true` | Unisce gli eventi dello stesso giorno in un unico cestino multicolore. Quando un giorno ha 2 o più eventi, viene mostrato un solo cestino diviso in N fette colorate con i nomi degli eventi impilati sopra. In questa modalità l'opzione `icon:` per evento viene ignorata |
+| `split_direction` | stringa | `"vertical"` | Come viene diviso il cestino multicolore: `vertical` (sinistra/destra) o `horizontal` (alto/basso) |
 
 ---
 
@@ -569,22 +582,9 @@ show_weekday: false
 type: custom:ha-separate-garbage-collection-card
 calendar: calendar.waste
 days: 5
-empty_text: "Nessuna raccolta"
-empty_symbol: "—"
-day_labels:
-  - "Oggi"
-  - "Domani"
-  - "Tra 2 giorni"
-  - "Tra 3 giorni"
-  - "Tra 4 giorni"
-short_days:
-  - "Dom"
-  - "Lun"
-  - "Mar"
-  - "Mer"
-  - "Gio"
-  - "Ven"
-  - "Sab"
+empty_text: Nessuna raccolta
+empty_symbol: —
+language: it
 ```
 
 [![Traduzione italiana completa](/examples/images/italian-translation.png)](/examples/italian-translation.yaml)
@@ -616,6 +616,27 @@ column_width: 70
 ```
 
 [![Larghezza colonne fissa](/examples/images/fixed-column-width.png)](/examples/fixed-column-width.yaml)
+
+---
+
+### Più raccolte nello stesso giorno — split orizzontale
+
+```yaml
+type: custom:ha-separate-garbage-collection-card
+calendar: calendar.waste
+days: 5
+merge_same_day: true
+split_direction: horizontal
+icon_size: 180
+```
+
+[![Più raccolte nello stesso giorno — split orizzontale](/examples/images/horizontal-split.png)](/examples/horizontal-split.yaml)
+
+Quando un giorno ha più di una raccolta (es. Carta + Vetro lo stesso lunedì), il cestino viene mostrato come una sola icona divisa in strisce orizzontali — una per tipo di rifiuto — con i nomi degli eventi impilati sopra il corpo del cestino.
+
+> ⚠️ **Le icone personalizzate non vengono usate in questa modalità.** La divisione ha bisogno del `trashcan.svg` monocromatico per poter colorare ogni fetta in modo indipendente, quindi il campo `icon:` di ogni evento viene ignorato nei giorni con merge. L'icona custom continua a comparire nei giorni in cui quel tipo di rifiuto è l'unica raccolta — e in ogni caso puoi disattivare il merge con `merge_same_day: false` per mantenere ovunque le icone personalizzate.
+
+Imposta `merge_same_day: false` per tornare al comportamento originale (un cestino per evento, affiancati).
 
 ---
 

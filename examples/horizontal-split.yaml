@@ -1,6 +1,6 @@
 type: custom:ha-separate-garbage-collection-card
 calendar: calendar.waste
 days: 5
-empty_text: Nessuna raccolta
-empty_symbol: —
-language: it
+merge_same_day: true
+split_direction: horizontal
+icon_size: 180
