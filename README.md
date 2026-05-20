@@ -19,7 +19,7 @@ This is a fork of [Raccolta differenziata](https://hassiohelp.eu/2019/03/17/racc
 
 ## What it does
 
-[![Example of 5-days-en.yaml's card](/examples/images/five-days-en.png)](/examples/5-days-en.yaml)
+[![Example of five-days.yaml's card](/examples/images/five-days.png)](/examples/five-days.yaml)
 
 The card reads events from any Home Assistant calendar (Local Calendar, Google Calendar, CalDAV…) and displays upcoming garbage collection days as coloured bin icons.
 
@@ -394,7 +394,7 @@ For complete control, set `filter:` directly in the description.
 
 ## Cosa fa
 
-[![Esempio della card 5-days-it.yaml](/examples/images/five-days-it.png)](/examples/5-days-it.yaml)
+[![Esempio della card five-days.yaml](/examples/images/five-days.png)](/examples/five-days.yaml)
 
 La card legge gli eventi da qualsiasi calendario di Home Assistant (Local Calendar, Google Calendar, CalDAV…) e mostra i prossimi giorni di raccolta come cestini colorati.
 
