@@ -1,17 +1,17 @@
 /**
  * HA Separate Garbage Collection Card
- * v4.1.0 - 20/05/2026
+ * v4.1.1 - 06/11/2026
  * Author: Massimo "RedFoxy Darrest" Cicciò
  * Git   : https://github.com/RedFoxy/ha-separate-garbage-collection
  *
- *   days: 1  → daily view (large icons, no background)
- *   days: 3  → 3 columns with background
- *   days: 5  → 5 columns with background (default)
+ * Views (both use the background image):
+ *   days: 1  → single-day view (one large bin row, title = day label)
+ *   days: N  → grid view with N columns (default: 5)
  *
- * Descrizione evento calendario (una per riga):
- *   color: #4CAF50        HEX color for the trash bin (optional, default is grey)
- *   icon:  wetwaste.png     custom image (optional, default icon is trashbin.svg)
- *   filter: hue-rotate(120deg) brightness(0.8)   manual override of the CSS filter to apply to the default icon (optional, auto-computed from color if not set)
+ * Calendar event description (one "key: value" per line, all optional):
+ *   color:  #4CAF50       HEX color used to tint trashbin.svg (default: grey)
+ *   icon:   wetwaste.png  custom image instead of trashbin.svg (relative to the card folder, or an absolute path)
+ *   filter: hue-rotate(120deg) brightness(0.8)   manual CSS filter for the default icon (default: computed from color)
  *
  * Multi-event days:
  *   When a day has 2+ events, the bins are merged into a single multi-color bin
@@ -20,21 +20,38 @@
  *   stays consistent. Toggle via `merge_same_day` and `split_direction`.
  */
 
-// Dual-path: HACS installs to /hacsfiles/<repo>/, manual install uses the legacy path.
-// Detection is based on the URL of this script file at load time.
-// Note: document.currentScript is null when the script is loaded as an ES module
-// (HA loads Lovelace resources with type="module" by default), so we fall back
-// to scanning the DOM for the <script> tag that loaded this card.
+// Asset folder = the folder this script was loaded from. trashbin.svg and
+// background.png always sit next to the JS file, whatever the install type:
+//   HACS   → /hacsfiles/HA-Separate-Garbage-Collection/
+//            or /local/community/HA-Separate-Garbage-Collection/ (older HACS resources)
+//   manual → /local/redfoxy/ha-separate-garbage-collection/ (or any folder the user chose)
+// document.currentScript is null for ES modules (HA loads Lovelace resources with
+// type="module"), so we also look for the <script> tag and, as last resort, for
+// the network entry of this file (works for dynamic import() too).
+const CARD_FILE   = 'ha-separate-garbage-collection-card.js';
+const MANUAL_PATH = '/local/redfoxy/ha-separate-garbage-collection/';
 const _SCRIPT_SRC = (() => {
-  if (document.currentScript && document.currentScript.src) return document.currentScript.src;
-  const el = document.querySelector(
-    'script[src*="ha-separate-garbage-collection-card"], link[href*="ha-separate-garbage-collection-card"]'
-  );
-  return el ? (el.src || el.href || '') : '';
+  if (document.currentScript?.src) return document.currentScript.src;
+  // The stack trace of an Error created here contains the URL of this file,
+  // in module and classic scripts alike, whatever path the server uses.
+  const m = String(new Error().stack || '').match(/(https?:\/\/[^\s()]+?\/ha-separate-garbage-collection-card\.js[^\s():]*)/);
+  if (m) return m[1];
+  const el = document.querySelector(`script[src*="${CARD_FILE}"]`);
+  if (el?.src) return el.src;
+  const entry = (performance.getEntriesByType?.('resource') || [])
+    .find(e => e.name.includes(CARD_FILE));
+  return entry ? entry.name : '';
 })();
-const BASE_PATH = _SCRIPT_SRC.includes('/hacsfiles/')
-  ? '/hacsfiles/HA-Separate-Garbage-Collection/'   // HACS install
-  : '/local/redfoxy/ha-separate-garbage-collection/'; // manual install
+const BASE_PATH = (() => {
+  if (!_SCRIPT_SRC) return MANUAL_PATH;
+  try {
+    const u   = new URL(_SCRIPT_SRC, location.href);
+    const dir = u.pathname.slice(0, u.pathname.lastIndexOf('/') + 1);
+    return u.origin === location.origin ? dir : `${u.origin}${dir}`;
+  } catch (e) {
+    return MANUAL_PATH;
+  }
+})();
 const TRASHBIN   = `${BASE_PATH}trashbin.svg`;
 const BG_DEFAULT = `${BASE_PATH}background.png`;
 // Intrinsic aspect ratio of trashbin.svg (365 wide × 718 tall).
@@ -43,7 +60,6 @@ const BG_DEFAULT = `${BASE_PATH}background.png`;
 // centered ~50%-wide strip and outer slices would be mostly empty space.
 const TRASHBIN_ASPECT = 365 / 718;
 
-const CACHE_TTL  = 5 * 60 * 1000;
 const MAX_AHEAD  = 45;
 
 // Bundled translations. Each language exposes:
@@ -55,6 +71,7 @@ const MAX_AHEAD  = 45;
 //   full_days[7]    — Sun → Sat
 //   title           — default card title (shown when show_title:true and title is blank)
 //   no_collection   — default empty_text for the single-day view
+//   unnamed         — fallback name for a calendar event without a summary
 //
 // Selection logic (see _currentLang): explicit `language:` config wins, otherwise
 // the card reads `hass.language` (normalised to the base tag — "zh-Hans" → "zh",
@@ -69,6 +86,7 @@ const I18N = {
     full_days: ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'],
     title: 'Waste collection',
     no_collection: 'No collection',
+    unnamed: 'Collection',
   },
   it: {
     today: 'Oggi',
@@ -78,6 +96,7 @@ const I18N = {
     full_days: ['Domenica','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'],
     title: 'Raccolta differenziata',
     no_collection: 'Nessuna raccolta',
+    unnamed: 'Raccolta',
   },
   fr: {
     today: "Aujourd'hui",
@@ -87,6 +106,7 @@ const I18N = {
     full_days: ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'],
     title: 'Collecte des déchets',
     no_collection: 'Pas de collecte',
+    unnamed: 'Collecte',
   },
   de: {
     today: 'Heute',
@@ -96,6 +116,7 @@ const I18N = {
     full_days: ['Sonntag','Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag'],
     title: 'Müllabfuhr',
     no_collection: 'Keine Abholung',
+    unnamed: 'Abholung',
   },
   es: {
     today: 'Hoy',
@@ -105,6 +126,7 @@ const I18N = {
     full_days: ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'],
     title: 'Recogida de residuos',
     no_collection: 'Sin recogida',
+    unnamed: 'Recogida',
   },
   pt: {
     today: 'Hoje',
@@ -114,6 +136,7 @@ const I18N = {
     full_days: ['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado'],
     title: 'Coleta de lixo',
     no_collection: 'Sem coleta',
+    unnamed: 'Coleta',
   },
   nl: {
     today: 'Vandaag',
@@ -123,6 +146,7 @@ const I18N = {
     full_days: ['Zondag','Maandag','Dinsdag','Woensdag','Donderdag','Vrijdag','Zaterdag'],
     title: 'Afvalinzameling',
     no_collection: 'Geen inzameling',
+    unnamed: 'Inzameling',
   },
   hu: {
     today: 'Ma',
@@ -132,6 +156,7 @@ const I18N = {
     full_days: ['Vasárnap','Hétfő','Kedd','Szerda','Csütörtök','Péntek','Szombat'],
     title: 'Hulladékgyűjtés',
     no_collection: 'Nincs gyűjtés',
+    unnamed: 'Gyűjtés',
   },
   ru: {
     today: 'Сегодня',
@@ -147,6 +172,7 @@ const I18N = {
     full_days: ['Воскресенье','Понедельник','Вторник','Среда','Четверг','Пятница','Суббота'],
     title: 'Вывоз мусора',
     no_collection: 'Сбора нет',
+    unnamed: 'Вывоз',
   },
   hi: {
     today: 'आज',
@@ -156,6 +182,7 @@ const I18N = {
     full_days: ['रविवार','सोमवार','मंगलवार','बुधवार','गुरुवार','शुक्रवार','शनिवार'],
     title: 'कचरा संग्रहण',
     no_collection: 'कोई संग्रह नहीं',
+    unnamed: 'संग्रह',
   },
   zh: {
     today: '今天',
@@ -165,6 +192,7 @@ const I18N = {
     full_days: ['星期日','星期一','星期二','星期三','星期四','星期五','星期六'],
     title: '垃圾分类收集',
     no_collection: '无收集',
+    unnamed: '收集',
   },
   ja: {
     today: '今日',
@@ -174,15 +202,24 @@ const I18N = {
     full_days: ['日曜日','月曜日','火曜日','水曜日','木曜日','金曜日','土曜日'],
     title: 'ごみ収集',
     no_collection: '収集なし',
+    unnamed: '収集',
   },
 };
+
+// Escapes text for safe use inside HTML content and double-quoted attributes.
+// Calendar event fields and YAML strings are user data and may contain < > & " '.
+function esc(v) {
+  return String(v ?? "").replace(/[&<>"']/g, c => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;",
+  })[c]);
+}
 
 // Computes a calibrated CSS filter based on the real trash can colors (trashbin.svg).
 // Base color: #f68b22  →  hsl(30°, 92%, 55%)
 // Formula:
-//   hue-rotate = target_hue - 30   (shifts from orange to the target hue)
-//   saturate   = target_sat / 92   (proportional saturation adjustment)
-//   brightness = target_lig / 55   (proportional lightness adjustment)
+//   hue-rotate = target_hue - 30          (shifts from orange to the target hue)
+//   saturate   = target_sat / 92          (proportional saturation adjustment)
+//   brightness = target_lig / 55 × 1.2    (proportional lightness, boosted, max 2.5)
 // For greys (saturation < 5%): use grayscale + brightness only.
 const BASE_HUE = 30;   // hue of #f68b22
 const BASE_SAT = 92;   // saturation of #f68b22
@@ -206,57 +243,98 @@ function colorToFilter(hex) {
     }
   }
   const hDeg=Math.round(h*360),sPct=Math.round(s*100),lPct=Math.round(l*100);
+  const brightness = Math.min(2.5, lPct / BASE_LIG * 1.2).toFixed(2);
 
-  if (sPct < 5) {
-    return `grayscale(100%) brightness(${Math.min(2.5, lPct/BASE_LIG*1.2).toFixed(2)})`;
-  }
+  if (sPct < 5) return `grayscale(100%) brightness(${brightness})`;
 
   const hueRot = hDeg - BASE_HUE;
   const satMul = Math.round(sPct / BASE_SAT * 100);  // relative to base saturation
-  const brigMul = (lPct / BASE_LIG).toFixed(2);
-
-  const brigBoosted = Math.min(2.5, (lPct / BASE_LIG * 1.2)).toFixed(2);
-  return `hue-rotate(${hueRot}deg) saturate(${satMul}%) brightness(${brigBoosted})`;
+  return `hue-rotate(${hueRot}deg) saturate(${satMul}%) brightness(${brightness})`;
 }
+
+// Default configuration. Boolean options listed in BOOL_TRUE default to true and
+// are normalised in setConfig, so the rest of the card reads plain booleans.
+const DEFAULT_CONFIG = {
+  days             : 5,
+  show_before      : '09:00',
+  show_title       : false,   // show/hide the card title bar
+  title            : null,    // card title text — falls back to the localised default
+  show_labels      : true,    // show garbage type name overlaid on the bin
+  show_day_labels  : true,    // show the day-offset label (Today / Tomorrow / in N days…)
+  show_weekday     : true,    // show the weekday name below the offset label
+  weekday_format   : 'short', // 'short' (Mon, Tue…) | 'full' (Monday, Tuesday…)
+  language         : null,    // force a language code (e.g. 'it'); null = auto from hass.language
+  day_labels       : null,    // override offset labels — localised "Today/Tomorrow/in N days" if null
+  short_days       : null,    // override short weekday names (7 entries, Sun–Sat)
+  full_days        : null,    // override full weekday names (7 entries, Sun–Sat)
+  skip_empty       : true,    // skip days with no collection
+  refresh_interval : 300,     // seconds between calendar re-fetches
+  icon_size        : null,    // px — auto-sized based on days count if null
+  column_width     : null,    // px — fixed column width; null = distribute equally (1fr)
+  empty_text       : null,    // single-day "no collection" text — falls back to localised default
+  empty_symbol     : '·',
+  merge_same_day   : true,        // merge 2+ events into a single multi-color bin
+  split_direction  : 'vertical',  // 'vertical' (left/right) | 'horizontal' (top/bottom)
+};
+const BOOL_TRUE = ['show_labels', 'show_day_labels', 'show_weekday', 'skip_empty', 'merge_same_day'];
+
+// Styles shared by the single-day and the grid view. Each view appends its own rules.
+const BASE_CSS = `
+  :host { display: block; }
+  ha-card {
+    background-position: center; background-size: cover; background-repeat: no-repeat;
+    box-sizing: border-box; overflow: hidden;
+    border-radius: var(--ha-card-border-radius, 12px);
+  }
+  .card-title {
+    font-size: 12px; font-weight: 700; letter-spacing: .07em;
+    text-transform: uppercase; color: #fff;
+    text-shadow: 0 1px 4px rgba(0,0,0,.85);
+  }
+  .bin { display: flex; flex-direction: column; align-items: center; }
+  .bin-box { position: relative; flex-shrink: 0; }
+  .bin-box img { object-fit: contain; }
+  .bin-box img.slice { position: absolute; inset: 0; }
+  .lbl {
+    position: absolute; top: 36%; left: 0; right: 0;
+    text-align: center; color: #fff; font-weight: 700;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.85), 0 0 6px rgba(0,0,0,0.6);
+    pointer-events: none; box-sizing: border-box;
+  }
+  .lbl-single {
+    font-size: 13px; line-height: 1.15; padding: 0 2px;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    overflow: hidden; word-break: break-word;
+  }
+  .lbl-stack { display: flex; flex-direction: column; gap: 1px; }
+  .lbl-stack span {
+    display: block; line-height: 1.1; padding: 0 2px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+`;
 
 class HASeparateGarbageCollectionCard extends HTMLElement {
   constructor() {
     super();
     this.attachShadow({ mode: 'open' });
     this._cache      = {};
-    this._fetched    = 0;
     this._ready      = false;
     this._lastTarget = null;
     this._interval   = null;
   }
 
   setConfig(cfg) {
-    if (!cfg.calendar) throw new Error('"calendar" è obbligatorio.');
-    this._cfg = {
-      days             : 5,
-      show_before      : '09:00',
-      show_title       : false,   // show/hide the card title bar
-      show_header      : false,   // alias for show_title (backward compat)
-      title            : null,    // card title text — falls back to the localised default
-      show_labels      : true,    // show garbage type name overlaid on the bin
-      show_day_labels  : true,    // show the day-offset label (Today / Tomorrow / in N days…)
-      show_weekday     : true,    // show the weekday name below the offset label
-      weekday_format   : 'short', // 'short' (Mon, Tue…) | 'full' (Monday, Tuesday…)
-      language         : null,    // force a language code (e.g. 'it'); null = auto from hass.language
-      day_labels       : null,    // override offset labels — auto-generated if null
-                                  //   auto: localised "Today/Tomorrow/in N days"
-      short_days       : null,    // override short weekday names (7 entries, Sun–Sat)
-      full_days        : null,    // override full weekday names (7 entries, Sun–Sat)
-      skip_empty       : true,    // skip days with no collection
-      refresh_interval : 300,     // seconds between calendar re-fetches
-      icon_size        : null,    // px — auto-sized based on days count if null
-      column_width     : null,    // px — fixed column width; null = distribute equally (1fr)
-      empty_text       : null,    // single-day "no collection" text — falls back to localised default
-      empty_symbol     : '·',
-      merge_same_day   : true,        // merge 2+ events into a single multi-color bin
-      split_direction  : 'vertical',  // 'vertical' (left/right) | 'horizontal' (top/bottom)
-      ...cfg,
-    };
+    if (!cfg.calendar) throw new Error('"calendar" is required.');
+    const c = { ...DEFAULT_CONFIG, ...cfg };
+    // Normalise once, so the render code needs no fallbacks.
+    c.show_title       = !!(c.show_title || c.show_header);   // show_header: legacy alias
+    c.days             = Number(c.days) || DEFAULT_CONFIG.days;
+    c.show_before      = c.show_before || DEFAULT_CONFIG.show_before;
+    c.empty_symbol     = c.empty_symbol || DEFAULT_CONFIG.empty_symbol;
+    c.refresh_interval = Number(c.refresh_interval) || DEFAULT_CONFIG.refresh_interval;
+    for (const k of BOOL_TRUE) c[k] = c[k] !== false;
+    delete c.show_header;
+    this._cfg = c;
   }
 
   set hass(hass) {
@@ -274,20 +352,33 @@ class HASeparateGarbageCollectionCard extends HTMLElement {
     }
   }
 
+  connectedCallback() {
+    // HA can detach and re-attach the same card (e.g. view or tab change) without
+    // setting hass again: restart the refresh timer in that case.
+    if (this._hass && !this._ready) {
+      this._ready = true;
+      this._start();
+    }
+  }
+
   disconnectedCallback() {
     // Clean up the refresh timer when the card is removed from DOM
     clearInterval(this._interval);
+    this._interval = null;
     this._ready = false;
   }
 
   _start() {
+    clearInterval(this._interval);  // never run two timers
+
+    this._lastTarget = this._localDateStr(this._targetDate());
     this._fetch();  // initial load
     const ms = Math.max(10, this._cfg.refresh_interval) * 1000;
     this._interval = setInterval(() => this._fetch(), ms);
   }
 
   get _fetchDays() {
-    return this._cfg.skip_empty ? MAX_AHEAD : (this._cfg.days || 5) + 1;
+    return this._cfg.skip_empty ? MAX_AHEAD : this._cfg.days + 1;
   }
 
   async _fetch() {
@@ -296,19 +387,18 @@ class HASeparateGarbageCollectionCard extends HTMLElement {
     const t1 = new Date(t0);
     t1.setDate(t1.getDate() + this._fetchDays);
 
-    const fmt = d => {
-      const ds = this._localDateStr(d);
-      return `${ds}T${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:00`;
-    };
+    // t0 and t1 are always at local midnight
+    const fmt = d => `${this._localDateStr(d)}T00:00:00`;
 
     try {
       const raw = await this._hass.callApi('GET',
         `calendars/${this._cfg.calendar}?start=${fmt(t0)}&end=${fmt(t1)}`);
+      const unnamed = this._i18n().unnamed;
       this._cache = {};
       for (const ev of (raw || [])) {
         const ds = ev.start?.date || ev.start?.dateTime?.slice(0,10);
         if (!ds) continue;
-        (this._cache[ds] = this._cache[ds] || []).push(this._parse(ev));
+        (this._cache[ds] = this._cache[ds] || []).push(this._parse(ev, unnamed));
       }
       // Sort each day's events alphabetically by name so the rendering order is
       // deterministic (left→right or top→bottom in the multi-color bin, and
@@ -316,15 +406,14 @@ class HASeparateGarbageCollectionCard extends HTMLElement {
       for (const ds in this._cache) {
         this._cache[ds].sort((a, b) => a.name.localeCompare(b.name));
       }
-      this._fetched = Date.now();
     } catch(e) {
       console.error('[GarbageCollection] Calendar fetch error:', e);
     }
     this._render();
   }
 
-  _parse(ev) {
-    const name = (ev.summary || 'Raccolta').trim();
+  _parse(ev, unnamed) {
+    const name = (ev.summary || unnamed).trim();
     // Parse description: each line can be "key: value" or "key = value"
     const meta = {};
     for (const line of (ev.description || '').split(/\r?\n/)) {
@@ -337,9 +426,7 @@ class HASeparateGarbageCollectionCard extends HTMLElement {
       ? (iconRaw.startsWith('/') ? iconRaw : `${BASE_PATH}${iconRaw}`)
       : null;
     // Use manual filter from description, or auto-compute from color
-    const cssFilter = meta.filter
-      ? meta.filter
-      : (color ? colorToFilter(color) : '');
+    const cssFilter = meta.filter || colorToFilter(color);
     return { name, color, iconUrl, cssFilter };
   }
 
@@ -348,7 +435,7 @@ class HASeparateGarbageCollectionCard extends HTMLElement {
   }
 
   _targetDate() {
-    const [sh, sm] = (this._cfg.show_before || '09:00').split(':').map(Number);
+    const [sh, sm] = this._cfg.show_before.split(':').map(Number);
     const now = new Date();
     const after = now.getHours()*60 + now.getMinutes() >= sh*60 + (sm||0);
     const d = new Date(now);
@@ -372,46 +459,30 @@ class HASeparateGarbageCollectionCard extends HTMLElement {
     return I18N[this._currentLang()] || I18N.en;
   }
 
-  // Returns offset labels: [today, tomorrow, "in 2 days", …] — auto or user-defined
-  _dayLabels() {
-    if (Array.isArray(this._cfg.day_labels) && this._cfg.day_labels.length) {
-      return this._cfg.day_labels;
-    }
-    const t = this._i18n();
-    const out = [t.today, t.tomorrow];
-    for (let i = 2; i < MAX_AHEAD; i++) out.push(t.in_n_days(i));
-    return out;
+  // Returns the offset label for day +offset: user-defined `day_labels` entry,
+  // else the localised "Today / Tomorrow / in N days".
+  _offsetLabel(offset, t) {
+    const custom = this._cfg.day_labels;
+    if (Array.isArray(custom) && custom[offset] != null) return custom[offset];
+    if (offset === 0) return t.today;
+    if (offset === 1) return t.tomorrow;
+    return t.in_n_days(offset);
   }
 
-  // Returns short weekday names (Sun–Sat) — user-overridable via short_days config
-  _shortDays() {
-    if (Array.isArray(this._cfg.short_days) && this._cfg.short_days.length === 7) {
-      return this._cfg.short_days;
-    }
-    return this._i18n().short_days;
-  }
-
-  // Returns full weekday names (Sun–Sat) — user-overridable via full_days config
-  _fullDays() {
-    if (Array.isArray(this._cfg.full_days) && this._cfg.full_days.length === 7) {
-      return this._cfg.full_days;
-    }
-    return this._i18n().full_days;
+  // Returns a user list of 7 weekday names (Sun–Sat), or the bundled fallback.
+  _weekdayNames(custom, fallback) {
+    return Array.isArray(custom) && custom.length === 7 ? custom : fallback;
   }
 
   // Day selection — skips empty days when skip_empty is true
-  _getDays() {
-    const count  = this._cfg.days || 5;
-    const skip   = this._cfg.skip_empty !== false;
-    const target = this._targetDate();
-    const result = [];
-    let offset   = 0;
+  _getDays(t) {
+    const { days: count, skip_empty: skip } = this._cfg;
+    const target     = this._targetDate();
+    const shortNames = this._weekdayNames(this._cfg.short_days, t.short_days);
+    const fullNames  = this._weekdayNames(this._cfg.full_days,  t.full_days);
+    const result     = [];
 
-    const shortNames = this._shortDays();
-    const fullNames  = this._fullDays();
-    const labels     = this._dayLabels();
-
-    while (result.length < count && offset < MAX_AHEAD) {
+    for (let offset = 0; result.length < count && offset < MAX_AHEAD; offset++) {
       const d     = new Date(target);
       d.setDate(d.getDate() + offset);
       const ds    = this._localDateStr(d);
@@ -422,49 +493,35 @@ class HASeparateGarbageCollectionCard extends HTMLElement {
           ds,
           short      : shortNames[d.getDay()],
           full       : fullNames[d.getDay()],
-          offsetLabel: labels[offset] ?? `in ${offset} days`,
-          isToday    : offset === 0,
-          isTomorrow : offset === 1,
+          offsetLabel: this._offsetLabel(offset, t),
           types,
         });
       }
-      offset++;
     }
     return result;
   }
 
+  // Shortens a bin label to fit a bin of `size` px (≈ 8.5 px per char at 13px bold).
+  // Multi-word names are kept (the CSS wraps or truncates them); a single word that
+  // is too long is abbreviated with "." — e.g. "Indiffer.".
+  _shortName(name, size) {
+    const maxCpl = Math.floor(size / 8.5);
+    return (!name.includes(' ') && name.length > maxCpl)
+      ? name.slice(0, maxCpl - 1) + '.'
+      : name;
+  }
+
   _binHTML(type, size) {
-    const showLbl = this._cfg.show_labels !== false;
-    const src     = type.iconUrl || TRASHBIN;
-    const filter  = (!type.iconUrl && type.cssFilter) ? `filter:${type.cssFilter};` : '';
-    // Label overlaid on the image, just below the lid area (top 36%).
-    // Strategy:
-    //   - Multi-word names (with spaces): allow 2-line wrap, clamp to 2 lines.
-    //   - Single long words (no space, too wide): abbreviate with "." e.g. "Indiffer."
-    const _maxCpl = Math.floor(size / 8.5);  // approx chars per line at 13px bold
-    const _name   = type.name;
-    const _hasSpace = _name.includes(' ');
-    const _tooLong  = _name.length > _maxCpl;
-    // Single word too long → abbreviate: keep maxCpl-1 chars + "."
-    const _display  = (!_hasSpace && _tooLong)
-      ? _name.slice(0, _maxCpl - 1) + '.'
-      : _name;
-    const lbl = showLbl ? `
-      <span style="
-        position:absolute; top:36%; left:0; right:0;
-        font-size:13px; font-weight:700; text-align:center;
-        color:#fff; line-height:1.15;
-        display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;
-        overflow:hidden; word-break:break-word;
-        padding:0 2px; box-sizing:border-box;
-        text-shadow:0 1px 3px rgba(0,0,0,0.85), 0 0 6px rgba(0,0,0,0.6);
-        pointer-events:none;
-      ">${_display}</span>` : '';
+    const src    = esc(type.iconUrl || TRASHBIN);
+    const filter = (!type.iconUrl && type.cssFilter) ? ` style="filter:${esc(type.cssFilter)}"` : '';
+    // Label overlaid on the image, just below the lid area (top 36%), max 2 lines.
+    const lbl = this._cfg.show_labels
+      ? `<span class="lbl lbl-single">${esc(this._shortName(type.name, size))}</span>`
+      : '';
 
     return `<div class="bin">
-      <div style="position:relative;width:${size}px;height:${size}px;flex-shrink:0">
-        <img src="${src}" width="${size}" height="${size}"
-          style="object-fit:contain;${filter}" title="${type.name}">
+      <div class="bin-box" style="width:${size}px;height:${size}px">
+        <img src="${src}" width="${size}" height="${size}" alt=""${filter} title="${esc(type.name)}">
         ${lbl}
       </div>
     </div>`;
@@ -473,7 +530,7 @@ class HASeparateGarbageCollectionCard extends HTMLElement {
   // Dispatcher: when merge_same_day is on and the day has 2+ events,
   // produce a single multi-color bin; otherwise fall back to N separate bins.
   _binsForDay(types, size) {
-    if (this._cfg.merge_same_day !== false && types.length >= 2) {
+    if (this._cfg.merge_same_day && types.length >= 2) {
       return this._multiBinHTML(types, size);
     }
     return types.map(t => this._binHTML(t, size)).join('');
@@ -484,10 +541,8 @@ class HASeparateGarbageCollectionCard extends HTMLElement {
   // Custom per-event icons are intentionally ignored — the split only works on the
   // default monochrome SVG.
   _multiBinHTML(types, size) {
-    const dir   = this._cfg.split_direction === 'horizontal' ? 'h' : 'v';
-    const n     = types.length;
-    const src   = TRASHBIN;
-    const showLbl = this._cfg.show_labels !== false;
+    const dir = this._cfg.split_direction === 'horizontal' ? 'h' : 'v';
+    const n   = types.length;
 
     // With object-fit:contain in a square box, the trashbin (aspect 365:718)
     // fills the full height but only a centered ~50%-wide strip horizontally.
@@ -505,17 +560,16 @@ class HASeparateGarbageCollectionCard extends HTMLElement {
       const clip = dir === 'v'
         ? `inset(0 ${endPct}% 0 ${startPct}%)`
         : `inset(${startPct}% 0 ${endPct}% 0)`;
-      const filter = t.cssFilter ? `filter:${t.cssFilter};` : '';
-      return `<img src="${src}" width="${size}" height="${size}" alt=""
-        style="position:absolute;inset:0;object-fit:contain;clip-path:${clip};${filter}">`;
+      const filter = t.cssFilter ? `filter:${esc(t.cssFilter)};` : '';
+      return `<img class="slice" src="${TRASHBIN}" width="${size}" height="${size}" alt=""
+        style="clip-path:${clip};${filter}">`;
     }).join('');
 
-    const labels = showLbl ? this._stackedLabelsHTML(types, size) : '';
-    const tip    = types.map(t => t.name).join(' / ');
+    const labels = this._cfg.show_labels ? this._stackedLabelsHTML(types, size) : '';
+    const tip    = esc(types.map(t => t.name).join(' / '));
 
     return `<div class="bin">
-      <div style="position:relative;width:${size}px;height:${size}px;flex-shrink:0"
-           title="${tip}">
+      <div class="bin-box" style="width:${size}px;height:${size}px" title="${tip}">
         ${layers}
         ${labels}
       </div>
@@ -528,143 +582,79 @@ class HASeparateGarbageCollectionCard extends HTMLElement {
   // otherwise shrinks gracefully as event count grows so multi-event labels stay legible
   // on smaller bins. Single-line with ellipsis.
   _stackedLabelsHTML(types, size) {
-    const maxCpl = Math.floor(size / 8.5);
     const fontPx = size >= 100
       ? 13
       : Math.max(9, Math.round(13 - (types.length - 1) * 1.5));
-
-    const items = types.map(t => {
-      const hasSpace = t.name.includes(' ');
-      const tooLong  = t.name.length > maxCpl;
-      const display  = (!hasSpace && tooLong)
-        ? t.name.slice(0, maxCpl - 1) + '.'
-        : t.name;
-      return `<span style="
-        display:block;
-        font-size:${fontPx}px; font-weight:700; line-height:1.1;
-        overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
-        padding:0 2px;
-      ">${display}</span>`;
-    }).join('');
-
-    return `<div style="
-      position:absolute; top:36%; left:0; right:0;
-      text-align:center; color:#fff;
-      text-shadow:0 1px 3px rgba(0,0,0,0.85), 0 0 6px rgba(0,0,0,0.6);
-      pointer-events:none;
-      display:flex; flex-direction:column; gap:1px;
-      box-sizing:border-box;
-    ">${items}</div>`;
+    const items = types.map(t => `<span>${esc(this._shortName(t.name, size))}</span>`).join('');
+    return `<div class="lbl lbl-stack" style="font-size:${fontPx}px">${items}</div>`;
   }
 
   _render() {
-    const count = this._cfg.days || 5;
-    const days  = this._getDays();
-
-    if (count === 1) {
-      this._renderSingle(days[0]);
-    } else {
-      this._renderGrid(days, count);
-    }
+    const t    = this._i18n();
+    const days = this._getDays(t);
+    if (this._cfg.days === 1) this._renderSingle(days[0], t);
+    else                      this._renderGrid(days, t);
   }
 
-  // Single-day view (days: 1) — shows one large icon with overlaid text, no background
-  _renderSingle(day) {
+  // Writes the card: shared CSS + view CSS, optional title bar, view body.
+  _paint(viewCss, title, body) {
+    // A single quote would close url('…'); %27 is the same character, URL-encoded.
+    const bg = esc((this._cfg.background || BG_DEFAULT).replace(/'/g, '%27'));
+    this.shadowRoot.innerHTML = `
+      <style>${BASE_CSS}${viewCss}</style>
+      <ha-card style="background-image:url('${bg}')">
+        ${this._cfg.show_title ? `<div class="card-title">${esc(title)}</div>` : ''}
+        ${body}
+      </ha-card>`;
+  }
+
+  // Single-day view (days: 1) — shows one large icon with overlaid text
+  _renderSingle(day, t) {
     const sz    = this._cfg.icon_size || 64;
-    const bg    = this._cfg.background || BG_DEFAULT;
-    const showT = this._cfg.show_title || this._cfg.show_header;
-    const t     = this._i18n();
     const title = this._cfg.title || day?.offsetLabel || t.today;
     const empty = this._cfg.empty_text || t.no_collection;
+    const body  = day?.types.length
+      ? this._binsForDay(day.types, sz)
+      : `<span class="empty">${esc(empty)}</span>`;
 
-    if (!day) {
-      this.shadowRoot.innerHTML = `
-        <ha-card style="background:url('${bg}') center/cover no-repeat;padding:16px;border-radius:var(--ha-card-border-radius,12px)">
-          <span style="color:#fff;font-style:italic">${empty}</span>
-        </ha-card>`;
-      return;
-    }
-
-    this.shadowRoot.innerHTML = `
-      <style>
-        :host { display: block; }
-        ha-card {
-          background: url('${bg}') center/cover no-repeat;
-          padding: 12px; box-sizing: border-box;
-          border-radius: var(--ha-card-border-radius, 12px);
-          overflow: hidden;
-        }
-        .card-title {
-          font-size: 12px; font-weight: 700; letter-spacing: .07em;
-          text-transform: uppercase; color: #fff;
-          text-shadow: 0 1px 4px rgba(0,0,0,.85); margin-bottom: 8px;
-        }
+    this._paint(`
+        ha-card { padding: 12px; }
+        .card-title { margin-bottom: 8px; }
         .row {
           display: flex; flex-wrap: wrap; gap: 10px;
           align-items: flex-end; min-height: ${sz+4}px;
         }
-        .bin { display: flex; flex-direction: column; align-items: center; }
         .empty { font-size: 13px; color: rgba(255,255,255,.7); font-style: italic; }
-      </style>
-      <ha-card>
-        ${showT ? `<div class="card-title">${title}</div>` : ''}
-        <div class="row">
-          ${day.types.length
-            ? this._binsForDay(day.types, sz)
-            : `<span class="empty">${empty}</span>`}
-        </div>
-      </ha-card>`;
+      `, title, `<div class="row">${body}</div>`);
   }
 
   // Grid view (days: 2+) — shows multiple columns with day labels and background
-  _renderGrid(days, count) {
-    const sz      = this._cfg.icon_size || 52;
-    const bg      = this._cfg.background || BG_DEFAULT;
-    const showTop = this._cfg.show_day_labels !== false;
-    const showSub = this._cfg.show_weekday === true;
-    const empty   = this._cfg.empty_symbol || '·';
-    const ncols   = days.length || count;
+  _renderGrid(days, t) {
+    const sz       = this._cfg.icon_size || 52;
+    const showTop  = this._cfg.show_day_labels;
+    const showSub  = this._cfg.show_weekday;
+    const empty    = this._cfg.empty_symbol;
+    const fullWd   = this._cfg.weekday_format === 'full';
+    const cw       = this._cfg.column_width;
+    const colStyle = cw ? ` style="width:${cw}px;min-width:${cw}px;flex:none"` : '';
 
-    const useFullWeekday = this._cfg.weekday_format === 'full';
-
-    const cols = days.map(day => {
-      const top = day.offsetLabel;  // e.g. "Today", "Tomorrow", "in 2 days"…
-      const wd  = useFullWeekday ? day.full : day.short;
-      const _cw = this._cfg.column_width;
-      const _colStyle = _cw ? `style="width:${_cw}px;min-width:${_cw}px;flex:none"` : '';
-      return `
-        <div class="col" ${_colStyle}>
+    const cols = days.map(day => `
+        <div class="col"${colStyle}>
           ${showTop || showSub ? `<div class="col-head">
-            ${showTop ? `<div class="lbl-top">${top}</div>` : ''}
-            ${showSub ? `<div class="lbl-sub">${wd}</div>` : ''}
+            ${showTop ? `<div class="lbl-top">${esc(day.offsetLabel)}</div>` : ''}
+            ${showSub ? `<div class="lbl-sub">${esc(fullWd ? day.full : day.short)}</div>` : ''}
           </div>` : ''}
           <div class="bins">
             ${day.types.length
               ? this._binsForDay(day.types, sz)
-              : `<span class="none">${empty}</span>`}
+              : `<span class="none">${esc(empty)}</span>`}
           </div>
-        </div>`;
-    }).join('');
+        </div>`).join('');
 
-    this.shadowRoot.innerHTML = `
-      <style>
-        :host { display: block; }
-        ha-card {
-          background: url('${bg}') center/cover no-repeat;
-          padding: 8px; overflow: hidden; box-sizing: border-box;
-          border-radius: var(--ha-card-border-radius, 12px);
-        }
-        .card-title {
-          font-size: 12px; font-weight: 700; letter-spacing: .07em;
-          text-transform: uppercase; color: #fff;
-          text-shadow: 0 1px 4px rgba(0,0,0,.85); margin-bottom: 6px;
-        }
-        .grid {
-          display: flex;
-          flex-wrap: nowrap;
-          gap: 5px;
-          align-items: end;
-        }
+    this._paint(`
+        ha-card { padding: 8px; }
+        .card-title { margin-bottom: 6px; }
+        .grid { display: flex; flex-wrap: nowrap; gap: 5px; align-items: end; }
         .col { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; min-width: 0; }
         .col-head {
           width: 100%; text-align: center;
@@ -674,23 +664,17 @@ class HASeparateGarbageCollectionCard extends HTMLElement {
         .lbl-top { font-size: 11px; font-weight: 700; color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,.9); white-space: nowrap; }
         .lbl-sub { font-size: 9px; color: rgba(255,255,255,.8); text-shadow: 0 1px 2px rgba(0,0,0,.9); }
         .bins { display: flex; flex-direction: column; align-items: center; gap: 4px; }
-        .bin  { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+        .bin  { gap: 3px; }
         .none { font-size: 18px; color: rgba(255,255,255,.3); }
-      </style>
-      <ha-card>
-        ${(this._cfg.show_title || this._cfg.show_header)
-          ? `<div class="card-title">${this._cfg.title || this._i18n().title}</div>`
-          : ''}
-        <div class="grid">${cols}</div>
-      </ha-card>`;
+      `, this._cfg.title || t.title, `<div class="grid">${cols}</div>`);
   }
 
   // Height hint for the masonry view (1 unit ≈ 50 px)
-  getCardSize() { return (this._cfg?.days || 5) === 1 ? 2 : 3; }
+  getCardSize() { return (this._cfg?.days ?? 5) === 1 ? 2 : 3; }
 
   // Grid options for the sections view
   getGridOptions() {
-    const days = this._cfg?.days || 5;
+    const days = this._cfg?.days ?? 5;
     return {
       columns    : days <= 3 ? 6 : 12,
       rows       : days === 1 ? 2 : 3,
@@ -711,7 +695,7 @@ class HASeparateGarbageCollectionCard extends HTMLElement {
       skip_empty      : true,
       refresh_interval: 300,
       empty_symbol    : '·',
-      icon_size       : 82,
+      // icon_size: null → auto (64 px for days:1, 52 px otherwise)
       merge_same_day  : true,
       split_direction : 'vertical',
       weekday_format  : 'short',
